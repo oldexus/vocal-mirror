@@ -130,7 +130,15 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
       let current: any = dict;
 
       for (const part of parts) {
-        if (current === null || current === undefined || typeof current !== 'object') {
+        if (
+          current === null ||
+          current === undefined ||
+          typeof current !== 'object' ||
+          part === '__proto__' ||
+          part === 'constructor' ||
+          part === 'prototype' ||
+          !Object.prototype.hasOwnProperty.call(current, part)
+        ) {
           current = undefined;
           break;
         }

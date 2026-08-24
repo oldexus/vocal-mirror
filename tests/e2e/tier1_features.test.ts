@@ -44,7 +44,6 @@ import {
 import {
   frequencyToNormX,
   frequencyToX,
-  normXToFrequency,
   xToFrequency,
   dbToY,
   yToDb,
@@ -81,14 +80,14 @@ function renderUI(ui: React.ReactElement) {
   const root = createRoot(container);
 
   act(() => {
-    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, ui));
+    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: ui }));
   });
 
   return {
     container,
     rerender: (newUi: React.ReactElement) => {
       act(() => {
-        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, newUi));
+        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: newUi }));
       });
     },
     unmount: () => {
@@ -399,7 +398,7 @@ describe('Tier 1: Comprehensive Feature Verification Suite (>=45 Features)', () 
       const source = ctx.createBufferSource();
 
       source.buffer = buffer;
-      source.connect(engine.getInput());
+      source.connect(engine.getInput() as any);
       source.start(0);
 
       expect(source._state).toBe('playing');

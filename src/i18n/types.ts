@@ -253,8 +253,8 @@ export interface TranslationDictionary {
       };
       mechanism: {
         title: string;
-        psychology: string;
-        resolution: string;
+        psychologicalAspect: string;
+        resolutionStrategy: string;
       };
       table: {
         title: string;

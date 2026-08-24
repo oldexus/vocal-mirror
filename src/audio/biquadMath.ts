@@ -17,6 +17,7 @@ import { AUDIO_CONSTANTS } from './constants';
  * Converts decibels (dB) to linear amplitude multiplier.
  */
 export function dbToLinear(db: number): number {
+  if (!Number.isFinite(db)) return 1.0;
   return Math.pow(10, db / 20);
 }
 
@@ -24,6 +25,7 @@ export function dbToLinear(db: number): number {
  * Converts linear amplitude multiplier to decibels (dB).
  */
 export function linearToDb(linear: number, minDb = -120): number {
+  if (!Number.isFinite(linear) || linear <= 0) return minDb;
   return 20 * Math.log10(Math.max(Math.pow(10, minDb / 20), Math.abs(linear)));
 }
 
@@ -64,14 +66,15 @@ export function computeBiquadCoefficients(
   Q = 0.707,
   gainDb = 0
 ): BiquadCoefficients {
-  const safeFs = Math.max(1000, fs);
-  const safeF0 = Math.max(1, Math.min(safeFs / 2 - 1, f0));
-  const safeQ = Math.max(0.0001, Q);
+  const safeFs = Number.isFinite(fs) ? Math.max(1000, fs) : 48000;
+  const safeF0 = Number.isFinite(f0) ? Math.max(1, Math.min(safeFs / 2 - 1, f0)) : 1000;
+  const safeQ = Number.isFinite(Q) ? Math.max(0.0001, Q) : 0.707;
+  const safeGainDb = Number.isFinite(gainDb) ? gainDb : 0;
 
   const w0 = (2 * Math.PI * safeF0) / safeFs;
   const cosW0 = Math.cos(w0);
   const sinW0 = Math.sin(w0);
-  const A = Math.pow(10, gainDb / 40); // sqrt(10^(gainDb/20))
+  const A = Math.pow(10, safeGainDb / 40); // sqrt(10^(gainDb/20))
   const alpha = sinW0 / (2 * safeQ);
   const beta = Math.sqrt(A) * sinW0; // for shelf slope S = 1
 
@@ -117,7 +120,7 @@ export function computeBiquadCoefficients(
     case 'highshelf':
       b0 = A * ((A + 1) + (A - 1) * cosW0 + beta);
       b1 = -2 * A * ((A - 1) + (A + 1) * cosW0);
-      b2 = A * ((A + 1) - (A - 1) * cosW0 - beta);
+      b2 = A * ((A + 1) + (A - 1) * cosW0 - beta);
       a0 = (A + 1) - (A - 1) * cosW0 + beta;
       a1 = 2 * ((A - 1) - (A + 1) * cosW0);
       a2 = (A + 1) - (A - 1) * cosW0 - beta;

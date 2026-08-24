@@ -8,7 +8,6 @@ import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { GuidanceCards } from '../../../src/components/GuidanceCards';
 import {
-  VOCAL_TRAINING_CARDS,
   DEFAULT_GUIDANCE_ITEMS,
 } from '../../../src/constants/guidanceContent';
 

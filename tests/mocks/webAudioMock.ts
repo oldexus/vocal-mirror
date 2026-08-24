@@ -419,10 +419,22 @@ export class AudioBufferMock {
   public sampleRate: number;
   public _channels: Float32Array[];
 
-  constructor(options: { numberOfChannels: number; length: number; sampleRate: number }) {
-    this.numberOfChannels = options.numberOfChannels;
-    this.length = options.length;
-    this.sampleRate = options.sampleRate;
+  constructor(options: { numberOfChannels: number; length: number; sampleRate: number });
+  constructor(numberOfChannels: number, length: number, sampleRate: number);
+  constructor(
+    arg1: number | { numberOfChannels: number; length: number; sampleRate: number },
+    arg2?: number,
+    arg3?: number
+  ) {
+    if (typeof arg1 === 'object') {
+      this.numberOfChannels = arg1.numberOfChannels;
+      this.length = arg1.length;
+      this.sampleRate = arg1.sampleRate;
+    } else {
+      this.numberOfChannels = arg1;
+      this.length = arg2 || 0;
+      this.sampleRate = arg3 || 48000;
+    }
     this._channels = [];
     for (let c = 0; c < this.numberOfChannels; c++) {
       this._channels.push(new Float32Array(this.length));
@@ -494,6 +506,7 @@ export class MediaStreamTrackMock {
   public label = 'Mock Audio Track';
   public enabled = true;
   public readyState: 'live' | 'ended' = 'live';
+  public onended: ((this: MediaStreamTrackMock, ev: Event) => any) | null = null;
 
   public stop(): void {
     this.readyState = 'ended';
@@ -657,8 +670,9 @@ export abstract class BaseAudioContextMock {
 }
 
 export class AudioContextMock extends BaseAudioContextMock {
-  constructor(options?: { sampleRate?: number }) {
-    super(options?.sampleRate || 48000);
+  constructor(options?: number | { sampleRate?: number }) {
+    const rate = typeof options === 'number' ? options : options?.sampleRate || 48000;
+    super(rate);
   }
 
   public async resume(): Promise<void> {
@@ -698,8 +712,8 @@ export class OfflineAudioContextMock extends BaseAudioContextMock {
       rate = arg1.sampleRate;
     } else {
       channels = arg1;
-      len = arg2 ?? 48000;
-      rate = arg3 ?? 48000;
+      len = arg2 || 48000;
+      rate = arg3 || 48000;
     }
 
     super(rate);
@@ -711,9 +725,10 @@ export class OfflineAudioContextMock extends BaseAudioContextMock {
    * Deterministic DSP difference equation rendering of audio graph
    */
   public async startRendering(): Promise<AudioBufferMock> {
-    const rendered = this.createBuffer(this.numberOfChannels, this.length, this.sampleRate);
+    this.state = 'running';
+    const rendered = new AudioBufferMock(this.numberOfChannels, this.length, this.sampleRate);
 
-    // Discover input source node connected in this context
+    // If source node is connected, run offline simulation
     const sourceNode = this._findSourceNode();
     if (sourceNode && sourceNode.buffer) {
       const srcChannel = sourceNode.buffer.getChannelData(0);
@@ -723,7 +738,7 @@ export class OfflineAudioContextMock extends BaseAudioContextMock {
       const filterChain = this._findFilterChain(sourceNode);
 
       // Apply cascade difference equation simulation
-      let currentSignal = new Float32Array(srcChannel);
+      let currentSignal: any = new Float32Array(srcChannel);
 
       for (const filter of filterChain) {
         currentSignal = applyBiquadFilterDSP(currentSignal, filter, this.sampleRate);

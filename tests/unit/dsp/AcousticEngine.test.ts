@@ -14,11 +14,11 @@ import {
 } from '../../../src/audio/sampleAudio';
 
 describe('AcousticEngine Graph Architecture & Parameter Management', () => {
-  let ctx: AudioContextMock;
+  let ctx: AudioContext;
 
   beforeEach(() => {
     installWebAudioMocks(globalThis);
-    ctx = new AudioContextMock({ sampleRate: 48000 });
+    ctx = new AudioContextMock({ sampleRate: 48000 }) as unknown as AudioContext;
   });
 
   describe('1. Initialization & Default Topology', () => {
@@ -43,7 +43,7 @@ describe('AcousticEngine Graph Architecture & Parameter Management', () => {
     });
 
     it('supports instantiation with OfflineAudioContext for batch rendering', () => {
-      const offlineCtx = new OfflineAudioContextMock(1, 48000, 48000);
+      const offlineCtx = new OfflineAudioContextMock(1, 48000, 48000) as unknown as OfflineAudioContext;
       const engine = new AcousticEngine(offlineCtx);
 
       expect(engine).toBeDefined();
@@ -216,7 +216,7 @@ describe('AcousticEngine Graph Architecture & Parameter Management', () => {
 
   describe('6. OfflineAudioContext processBuffer Integration', () => {
     it('processes synthetic vocal buffer through AcousticEngine.processBuffer', async () => {
-      const testCtx = new OfflineAudioContextMock(1, 48000 * 0.1, 48000);
+      const testCtx = new OfflineAudioContextMock(1, 48000 * 0.1, 48000) as unknown as BaseAudioContext;
       const testBuffer = createSyntheticVocalBuffer(testCtx, { duration: 0.1 });
 
       const processed = await AcousticEngine.processBuffer(
@@ -253,7 +253,7 @@ describe('AcousticEngine Graph Architecture & Parameter Management', () => {
     });
 
     it('creates AudioBuffer correctly from synthetic vocal generator presets', () => {
-      for (const [key, preset] of Object.entries(SAMPLE_AUDIO_PRESETS)) {
+      for (const [, preset] of Object.entries(SAMPLE_AUDIO_PRESETS)) {
         const buffer = createSyntheticVocalBuffer(ctx, { ...preset.options, duration: 0.1 });
         expect(buffer).toBeDefined();
         expect(buffer.duration).toBeCloseTo(0.1, 2);

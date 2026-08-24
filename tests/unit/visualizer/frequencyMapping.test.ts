@@ -27,8 +27,6 @@ import {
   calculateSpectralGapMetrics,
   interpolateSpectrumToCanvas,
   FREQ_CONSTANTS,
-  FREQ_MAPPING_CONSTANTS,
-  MAJOR_GRID_FREQUENCIES,
 } from '../../../src/utils/frequencyMapping';
 
 describe('Logarithmic Frequency Mapping & DSP Calculations', () => {

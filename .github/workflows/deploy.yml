@@ -1,0 +1,69 @@
+name: CI/CD Pipeline & Web Deployment Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-and-verify:
+    name: Typecheck, Test, Build & Verify Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Security Audit (npm audit)
+        run: npm audit --audit-level=high
+
+      - name: Run Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Run Vitest Suite (650 tests)
+        run: npm test
+
+      - name: Build Production Distribution (vite build)
+        run: npm run build
+
+      - name: Verify Production Distribution Artifacts
+        run: |
+          test -d dist || { echo "::error::dist/ directory not found"; exit 1; }
+          test -f dist/index.html || { echo "::error::dist/index.html missing"; exit 1; }
+          test -f dist/manifest.webmanifest || { echo "::error::dist/manifest.webmanifest missing"; exit 1; }
+          test -f dist/_headers || { echo "::error::dist/_headers missing"; exit 1; }
+          test -f dist/_redirects || { echo "::error::dist/_redirects missing"; exit 1; }
+          test -f dist/robots.txt || { echo "::error::dist/robots.txt missing"; exit 1; }
+          test -f dist/404.html || { echo "::error::dist/404.html missing"; exit 1; }
+          test -f dist/icon-192.png || { echo "::error::dist/icon-192.png missing"; exit 1; }
+          test -f dist/icon-512.png || { echo "::error::dist/icon-512.png missing"; exit 1; }
+          test -f dist/icon-maskable-512.png || { echo "::error::dist/icon-maskable-512.png missing"; exit 1; }
+          test -f dist/apple-touch-icon.png || { echo "::error::dist/apple-touch-icon.png missing"; exit 1; }
+          test -f dist/og-image.png || { echo "::error::dist/og-image.png missing"; exit 1; }
+          echo "All production distribution artifacts successfully verified!"
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-dist
+          path: dist/
+          retention-days: 7

@@ -6,7 +6,6 @@ import {
 import {
   computeBiquadCoefficients,
   calculateBiquadResponse,
-  calculateCascadeResponse,
   calculateTheoreticalBranchResponse,
   calculateDynamicPreAttenuation,
   dbToLinear,

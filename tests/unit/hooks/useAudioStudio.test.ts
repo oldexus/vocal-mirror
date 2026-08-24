@@ -27,6 +27,8 @@ interface HookResult<T> {
   current: T;
 }
 
+const activeUnmounts: (() => void)[] = [];
+
 function renderAudioStudioHook(options?: UseAudioStudioOptions) {
   const result: HookResult<ReturnType<typeof useAudioStudio>> = {
     current: null as any,
@@ -45,31 +47,53 @@ function renderAudioStudioHook(options?: UseAudioStudioOptions) {
     root.render(React.createElement(TestHarness));
   });
 
+  const unmountFn = () => {
+    act(() => {
+      root.unmount();
+    });
+    if (container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  };
+  activeUnmounts.push(unmountFn);
+
   return {
     result,
-    rerender: (newOptions?: UseAudioStudioOptions) => {
+    rerender: (_newOptions?: UseAudioStudioOptions) => {
       act(() => {
         root.render(React.createElement(TestHarness));
       });
     },
-    unmount: () => {
-      act(() => {
-        root.unmount();
-      });
-      container.remove();
-    },
+    unmount: unmountFn,
   };
 }
 
 describe('useAudioStudio Custom Hook Test Suite', () => {
   beforeEach(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+      writable: true,
+    });
     installWebAudioMocks(globalThis);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    while (activeUnmounts.length > 0) {
+      try {
+        activeUnmounts.pop()!();
+      } catch {}
+    }
+    vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+      writable: true,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
   });
 
   // ==========================================
@@ -365,6 +389,72 @@ describe('useAudioStudio Custom Hook Test Suite', () => {
 
       unmount();
     });
+
+    it('triggers cancelRecording and sets error when dynamic track disconnection (track.onended) occurs', async () => {
+      const { result, unmount } = renderAudioStudioHook();
+      let capturedTrack: any = null;
+
+      const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
+        const stream = await originalGetUserMedia(constraints);
+        capturedTrack = stream.getAudioTracks()[0];
+        return stream;
+      };
+
+      await act(async () => {
+        await result.current.startRecording();
+      });
+
+      expect(result.current.isRecording).toBe(true);
+      expect(capturedTrack).not.toBeNull();
+      expect(typeof capturedTrack.onended).toBe('function');
+
+      // Simulate dynamic physical mic disconnection or permission revocation
+      act(() => {
+        capturedTrack.onended(new Event('ended'));
+      });
+
+      expect(result.current.isRecording).toBe(false);
+      expect(result.current.error).toBe('Microphone disconnected or permission revoked');
+      expect(result.current.recordingDuration).toBe(0);
+
+      unmount();
+    });
+
+    it('triggers cancelRecording and sets error when MediaRecorder.onerror occurs', async () => {
+      const { result, unmount } = renderAudioStudioHook();
+      let capturedRecorder: any = null;
+
+      const OriginalMediaRecorder = globalThis.MediaRecorder;
+      globalThis.MediaRecorder = class extends OriginalMediaRecorder {
+        constructor(stream: any, options: any) {
+          super(stream, options);
+          capturedRecorder = this;
+        }
+      } as any;
+
+      try {
+        await act(async () => {
+          await result.current.startRecording();
+        });
+
+        expect(result.current.isRecording).toBe(true);
+        expect(capturedRecorder).not.toBeNull();
+        expect(typeof capturedRecorder.onerror).toBe('function');
+
+        // Simulate hardware recording crash / buffer exhaustion
+        act(() => {
+          capturedRecorder.onerror(new Event('error'));
+        });
+
+        expect(result.current.isRecording).toBe(false);
+        expect(result.current.error).toBe('Recording failed due to media hardware error');
+        expect(result.current.recordingDuration).toBe(0);
+      } finally {
+        globalThis.MediaRecorder = OriginalMediaRecorder;
+        unmount();
+      }
+    });
   });
 
   // ==========================================
@@ -627,6 +717,95 @@ describe('useAudioStudio Custom Hook Test Suite', () => {
 
       unmount();
     });
+
+    it('rejects prototype pollution keys and unknown keys in updateParameter and updateParameters', () => {
+      const { result, unmount } = renderAudioStudioHook();
+
+      // Attempt prototype pollution via updateParameter
+      act(() => {
+        result.current.updateParameter('__proto__' as any, 100);
+        result.current.updateParameter('constructor' as any, 100);
+        result.current.updateParameter('prototype' as any, 100);
+        result.current.updateParameter('unknownKey' as any, 100);
+      });
+
+      expect((Object.prototype as any).polluted).toBeUndefined();
+      expect((result.current.parameters as any).__proto__).toBe(Object.prototype);
+      expect((result.current.parameters as any).unknownKey).toBeUndefined();
+
+      // Attempt prototype pollution via batch updateParameters
+      act(() => {
+        result.current.updateParameters({
+          ['__proto__' as any]: { polluted: true },
+          ['constructor' as any]: { polluted: true },
+          ['prototype' as any]: { polluted: true },
+          ['nonExistentParam' as any]: 42,
+        });
+      });
+
+      expect((Object.prototype as any).polluted).toBeUndefined();
+      expect((result.current.parameters as any).nonExistentParam).toBeUndefined();
+
+      unmount();
+    });
+
+    it('sanitizes NaN, Infinity, -Infinity, and non-numeric inputs safely to default values', () => {
+      const { result, unmount } = renderAudioStudioHook();
+
+      // NaN should fallback to default limit value without storing NaN in state
+      act(() => {
+        result.current.updateParameter('lowShelfGain', NaN);
+      });
+      expect(Number.isFinite(result.current.parameters.lowShelfGain)).toBe(true);
+      expect(result.current.parameters.lowShelfGain).toBe(PARAMETER_LIMITS.lowShelfGain.default);
+
+      // Infinity / -Infinity should fallback safely
+      act(() => {
+        result.current.updateParameter('lowShelfGain', Infinity);
+      });
+      expect(Number.isFinite(result.current.parameters.lowShelfGain)).toBe(true);
+      expect(result.current.parameters.lowShelfGain).toBe(PARAMETER_LIMITS.lowShelfGain.default);
+
+      // Batch updateParameters with NaNs
+      act(() => {
+        result.current.updateParameters({
+          lowShelfGain: NaN,
+          masterGain: -Infinity,
+          mandibleResGain: 'invalid' as any,
+        });
+      });
+      expect(Number.isFinite(result.current.parameters.lowShelfGain)).toBe(true);
+      expect(Number.isFinite(result.current.parameters.masterGain)).toBe(true);
+      expect(Number.isFinite(result.current.parameters.mandibleResGain)).toBe(true);
+      expect(result.current.parameters.lowShelfGain).toBe(PARAMETER_LIMITS.lowShelfGain.default);
+      expect(result.current.parameters.masterGain).toBe(PARAMETER_LIMITS.masterGain.default);
+      expect(result.current.parameters.mandibleResGain).toBe(PARAMETER_LIMITS.mandibleResGain.default);
+
+      unmount();
+    });
+
+    it('safely ignores invalid, prototype keys, and non-object inputs in applyPreset without throwing', () => {
+      const { result, unmount } = renderAudioStudioHook();
+
+      // Should not throw on prototype keys or arbitrary strings or non-existent presets
+      expect(() => {
+        act(() => {
+          result.current.applyPreset('toString' as any);
+          result.current.applyPreset('valueOf' as any);
+          result.current.applyPreset('__proto__' as any);
+          result.current.applyPreset('constructor' as any);
+          result.current.applyPreset('non_existent_preset' as any);
+          result.current.applyPreset(null as any);
+          result.current.applyPreset(undefined as any);
+        });
+      }).not.toThrow();
+
+      // Preset state and parameters should remain unaffected or valid
+      expect(result.current.activePreset).toBe('natural_standard');
+      expect(result.current.parameters.lowShelfFreq).toBe(DEFAULT_DSP_PARAMS.lowShelfFreq);
+
+      unmount();
+    });
   });
 
   // ==========================================
@@ -649,5 +828,94 @@ describe('useAudioStudio Custom Hook Test Suite', () => {
 
       expect(destroySpy).toHaveBeenCalled();
     });
+
+    it('cleanly releases all hardware tracks during rapid start/cancel and mount/unmount cycles', async () => {
+      const stopTrackSpies: any[] = [];
+      const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
+        const stream = await originalGetUserMedia(constraints);
+        const track = stream.getAudioTracks()[0];
+        const stopSpy = vi.spyOn(track, 'stop');
+        stopTrackSpies.push(stopSpy);
+        return stream;
+      };
+
+      const { result, unmount } = renderAudioStudioHook();
+
+      // Rapid start and immediate cancel
+      for (let i = 0; i < 5; i++) {
+        await act(async () => {
+          const startPromise = result.current.startRecording();
+          result.current.cancelRecording();
+          await startPromise;
+        });
+      }
+
+      expect(result.current.isRecording).toBe(false);
+
+      // Start recording then unmount while active
+      await act(async () => {
+        await result.current.startRecording();
+      });
+      expect(result.current.isRecording).toBe(true);
+
+      unmount();
+
+      // All acquired tracks must have been stopped
+      expect(stopTrackSpies.length).toBeGreaterThan(0);
+      for (const spy of stopTrackSpies) {
+        expect(spy).toHaveBeenCalled();
+      }
+    });
+  });
+
+  // ==========================================
+  // Suite 9: Tab Visibility & Background Hardware Management
+  // ==========================================
+  describe('9. Tab Visibility & Background Hardware Management', () => {
+    it('cancels active recording and releases microphone track when document becomes hidden', async () => {
+      const { result, unmount } = renderAudioStudioHook();
+      let capturedTrack: any = null;
+
+      const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
+        const stream = await originalGetUserMedia(constraints);
+        capturedTrack = stream.getAudioTracks()[0];
+        vi.spyOn(capturedTrack, 'stop');
+        return stream;
+      };
+
+      await act(async () => {
+        await result.current.startRecording();
+      });
+      expect(result.current.isRecording).toBe(true);
+      expect(capturedTrack).not.toBeNull();
+
+      // Trigger visibility change to 'hidden'
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'hidden',
+      });
+
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(result.current.isRecording).toBe(false);
+      expect(capturedTrack.stop).toHaveBeenCalled();
+
+      // Restore visibilityState to 'visible'
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'visible',
+      });
+
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      unmount();
+    });
   });
 });
+

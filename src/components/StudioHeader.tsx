@@ -32,7 +32,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   contextState = 'suspended',
   isRecording = false,
   isPlaying = false,
-  activeMode = 'RAW',
+  activeMode: _activeMode = 'RAW',
   latencyMs = 12,
   sampleRate = 48000,
   onOpenHelp,

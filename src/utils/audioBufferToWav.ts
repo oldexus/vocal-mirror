@@ -29,8 +29,16 @@ function isValidAudioBuffer(buffer: unknown): buffer is AudioBuffer {
   const b = buffer as Partial<AudioBuffer>;
   return (
     typeof b.numberOfChannels === 'number' &&
+    Number.isInteger(b.numberOfChannels) &&
+    b.numberOfChannels >= 1 &&
+    b.numberOfChannels <= 32 &&
     typeof b.sampleRate === 'number' &&
+    Number.isFinite(b.sampleRate) &&
+    b.sampleRate >= 8000 &&
+    b.sampleRate <= 384000 &&
     typeof b.length === 'number' &&
+    Number.isInteger(b.length) &&
+    b.length >= 0 &&
     typeof b.getChannelData === 'function'
   );
 }
@@ -67,6 +75,14 @@ export function audioBufferToWav(
   const byteRate = sampleRate * blockAlign;
   const dataSize = numSamples * blockAlign;
   const headerSize = 44;
+
+  // RIFF chunk size 32-bit overflow check (Max ~4GB)
+  if (dataSize > 0xFFFFFFFF - 36) {
+    throw new RangeError(
+      `audioBufferToWav: AudioBuffer data size (${dataSize} bytes) exceeds standard 32-bit RIFF/WAVE limit (4GB).`
+    );
+  }
+
   const totalSize = headerSize + dataSize;
 
   const arrayBuffer = new ArrayBuffer(totalSize);
@@ -197,6 +213,46 @@ export function exportAudioBufferAsWavBlob(
 }
 
 /**
+ * Sanitizes a filename against path traversal, control characters,
+ * Windows reserved device names, and filesystem limits.
+ */
+export function sanitizeFilename(filename: string): string {
+  if (!filename || typeof filename !== 'string') {
+    return 'recording.wav';
+  }
+
+  // 1. Strip ASCII control characters (\x00-\x1f\x7f)
+  let clean = filename.replace(/[\x00-\x1f\x7f]/g, '');
+
+  // 2. Remove / sanitize illegal path characters: [/\\?%*:|"<>~#&{}]
+  clean = clean.replace(/[/\\?%*:|"<>~#&{}]/g, '_');
+
+  // 3. Replace consecutive dots (..) with a single dot
+  clean = clean.replace(/\.{2,}/g, '.');
+
+  // 4. Trim whitespace
+  clean = clean.trim();
+
+  // 5. Truncate filename to a safe max length (128 characters)
+  if (clean.length > 128) {
+    clean = clean.slice(0, 128).trim();
+  }
+
+  // 6. Detect and sanitize Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+  const reservedRegex = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+  if (reservedRegex.test(clean)) {
+    clean = `_${clean}`;
+  }
+
+  // 7. Fallback to 'recording.wav' if the resulting string is empty or just '.wav'
+  if (!clean || clean.toLowerCase() === '.wav') {
+    return 'recording.wav';
+  }
+
+  return clean;
+}
+
+/**
  * Triggers a browser download of a WAV Blob or AudioBuffer and ensures memory cleanup.
  */
 export function downloadWavBlob(
@@ -218,11 +274,12 @@ export function downloadWavBlob(
     return;
   }
 
+  const cleanName = sanitizeFilename(filename);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.style.display = 'none';
   anchor.href = url;
-  anchor.download = filename.endsWith('.wav') ? filename : `${filename}.wav`;
+  anchor.download = cleanName.endsWith('.wav') ? cleanName : `${cleanName}.wav`;
 
   document.body.appendChild(anchor);
   anchor.click();

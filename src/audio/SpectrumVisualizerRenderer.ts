@@ -116,7 +116,13 @@ export class SpectrumVisualizerRenderer {
 
   // Hover Cursor State
   private hoverX: number | null = null;
-  private hoverY: number | null = null;
+
+  // Render Hot-Loop Caches (Zero Allocation)
+  private cachedGridTicks: ReturnType<typeof getFrequencyGridTicks> | null = null;
+  private cachedLowGrad: CanvasGradient | null = null;
+  private cachedHighGrad: CanvasGradient | null = null;
+  private cachedGradWidth = 0;
+  private static readonly DB_TICKS = [-90, -60, -30] as const;
 
   // Dynamic Badges Smoothing State
   private boostBadge: BadgeState = { x: 0, y: 0, valueDb: 0, freq: 0, visible: false, alpha: 0 };
@@ -201,6 +207,10 @@ export class SpectrumVisualizerRenderer {
 
   public setOptions(newOptions: Partial<VisualizerRenderOptions>): void {
     this.options = { ...this.options, ...newOptions };
+    this.cachedGridTicks = null;
+    this.cachedLowGrad = null;
+    this.cachedHighGrad = null;
+    this.cachedGradWidth = 0;
   }
 
   public frequencyToX(freq: number, width = this.width): number {
@@ -227,6 +237,10 @@ export class SpectrumVisualizerRenderer {
     this.height = Math.floor(height);
     this.dpr = Math.max(1, dpr);
 
+    this.cachedLowGrad = null;
+    this.cachedHighGrad = null;
+    this.cachedGradWidth = 0;
+
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
     this.canvas.style.width = `${this.width}px`;
@@ -241,14 +255,12 @@ export class SpectrumVisualizerRenderer {
     }
   }
 
-  public setHoverCursor(x: number | null, y: number | null): void {
+  public setHoverCursor(x: number | null, _y: number | null): void {
     this.hoverX = x;
-    this.hoverY = y;
   }
 
   public clearHoverCursor(): void {
     this.hoverX = null;
-    this.hoverY = null;
     if (this.onCursorInspect) {
       this.onCursorInspect(null);
     }
@@ -326,13 +338,13 @@ export class SpectrumVisualizerRenderer {
 
   private fetchFrequencyData(): void {
     if (this.rawAnalyser) {
-      this.rawAnalyser.getFloatFrequencyData(this.rawFreqData);
+      this.rawAnalyser.getFloatFrequencyData(this.rawFreqData as unknown as Float32Array<ArrayBuffer>);
     } else {
       this.rawFreqData.fill(this.options.minDecibels);
     }
 
     if (this.processedAnalyser) {
-      this.processedAnalyser.getFloatFrequencyData(this.boneFreqData);
+      this.processedAnalyser.getFloatFrequencyData(this.boneFreqData as unknown as Float32Array<ArrayBuffer>);
     } else {
       this.boneFreqData.fill(this.options.minDecibels);
     }
@@ -361,7 +373,10 @@ export class SpectrumVisualizerRenderer {
   }
 
   private renderGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const ticks = getFrequencyGridTicks(this.options.minFrequency, this.options.maxFrequency);
+    if (!this.cachedGridTicks) {
+      this.cachedGridTicks = getFrequencyGridTicks(this.options.minFrequency, this.options.maxFrequency);
+    }
+    const ticks = this.cachedGridTicks;
 
     ctx.save();
     ctx.lineWidth = 1;
@@ -381,9 +396,8 @@ export class SpectrumVisualizerRenderer {
     }
 
     // Horizontal Decibel Reference Lines (-90dB, -60dB, -30dB)
-    const dbTicks = [-90, -60, -30];
     ctx.textAlign = 'left';
-    for (const db of dbTicks) {
+    for (const db of SpectrumVisualizerRenderer.DB_TICKS) {
       if (db >= this.options.minDecibels && db <= this.options.maxDecibels) {
         const y = dbToY(db, h, this.options.minDecibels, this.options.maxDecibels);
         ctx.beginPath();
@@ -417,7 +431,7 @@ export class SpectrumVisualizerRenderer {
     }
   }
 
-  private renderDifferentialGapFills(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  private renderDifferentialGapFills(ctx: CanvasRenderingContext2D, w: number, _h: number): void {
     const stepPx = 2;
     const points = Math.ceil(w / stepPx);
 
@@ -561,21 +575,26 @@ export class SpectrumVisualizerRenderer {
     const xHighStart = frequencyToX(4000, w, this.options.minFrequency, this.options.maxFrequency);
     const xHighEnd = frequencyToX(16000, w, this.options.minFrequency, this.options.maxFrequency);
 
+    if (!this.cachedLowGrad || !this.cachedHighGrad || this.cachedGradWidth !== w) {
+      this.cachedGradWidth = w;
+      const lowGrad = ctx.createLinearGradient(xLowStart, 0, xLowEnd, 0);
+      lowGrad.addColorStop(0, 'rgba(6, 182, 212, 0.05)');
+      lowGrad.addColorStop(0.5, 'rgba(6, 182, 212, 0.30)');
+      lowGrad.addColorStop(1, 'rgba(6, 182, 212, 0.05)');
+      this.cachedLowGrad = lowGrad;
+
+      const highGrad = ctx.createLinearGradient(xHighStart, 0, xHighEnd, 0);
+      highGrad.addColorStop(0, 'rgba(244, 63, 94, 0.05)');
+      highGrad.addColorStop(0.5, 'rgba(244, 63, 94, 0.25)');
+      highGrad.addColorStop(1, 'rgba(244, 63, 94, 0.05)');
+      this.cachedHighGrad = highGrad;
+    }
+
     ctx.save();
-    // Highlight Cranial Bone Boost Band (50-300Hz)
-    const lowGrad = ctx.createLinearGradient(xLowStart, 0, xLowEnd, 0);
-    lowGrad.addColorStop(0, 'rgba(6, 182, 212, 0.05)');
-    lowGrad.addColorStop(0.5, 'rgba(6, 182, 212, 0.30)');
-    lowGrad.addColorStop(1, 'rgba(6, 182, 212, 0.05)');
-    ctx.fillStyle = lowGrad;
+    ctx.fillStyle = this.cachedLowGrad;
     ctx.fillRect(xLowStart, 0, Math.max(1, xLowEnd - xLowStart), h);
 
-    // Highlight Skull Tissue Rolloff Band (>4kHz)
-    const highGrad = ctx.createLinearGradient(xHighStart, 0, xHighEnd, 0);
-    highGrad.addColorStop(0, 'rgba(244, 63, 94, 0.05)');
-    highGrad.addColorStop(0.5, 'rgba(244, 63, 94, 0.25)');
-    highGrad.addColorStop(1, 'rgba(244, 63, 94, 0.05)');
-    ctx.fillStyle = highGrad;
+    ctx.fillStyle = this.cachedHighGrad;
     ctx.fillRect(xHighStart, 0, Math.max(1, xHighEnd - xHighStart), h);
     ctx.restore();
 

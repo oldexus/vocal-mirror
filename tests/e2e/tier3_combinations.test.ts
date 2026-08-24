@@ -28,28 +28,19 @@ import { AcousticEngine } from '../../src/audio/AcousticEngine';
 import {
   DEFAULT_DSP_PARAMS,
   ACOUSTIC_PRESETS,
-  AUDIO_CONSTANTS,
 } from '../../src/audio/constants';
 import {
   calculateDynamicPreAttenuation,
   calculateTheoreticalBranchResponse,
-  dbToLinear,
 } from '../../src/audio/biquadMath';
 import {
   createSyntheticVocalBuffer,
 } from '../../src/audio/sampleAudio';
 import {
-  frequencyToX,
-  dbToY,
-  calculateBandEnergy,
-  calculateDifferentialBandGap,
   calculateSpectralGapSummary,
   calculateSpectralGapMetrics,
 } from '../../src/utils/frequencyMapping';
 import {
-  audioBufferToWav,
-  exportAudioBufferAsWavBlob,
-  downloadWavBlob,
   renderAndExportWav,
 } from '../../src/utils/audioBufferToWav';
 import { SpectrumVisualizerRenderer } from '../../src/audio/SpectrumVisualizerRenderer';
@@ -57,7 +48,6 @@ import { GuidanceCards } from '../../src/components/GuidanceCards';
 import { ExportModal } from '../../src/components/ExportModal';
 import { PresetSelector } from '../../src/components/PresetSelector';
 import { ParameterSliders } from '../../src/components/ParameterSliders';
-import { ModeSelector } from '../../src/components/ModeSelector';
 import { AudioControls } from '../../src/components/AudioControls';
 import App from '../../src/App';
 
@@ -74,14 +64,14 @@ function renderUI(ui: React.ReactElement) {
   const root = createRoot(container);
 
   act(() => {
-    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, ui));
+    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: ui }));
   });
 
   return {
     container,
     rerender: (newUi: React.ReactElement) => {
       act(() => {
-        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, newUi));
+        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: newUi }));
       });
     },
     unmount: () => {
@@ -154,7 +144,7 @@ describe('Tier 3: Pairwise Cross-Feature Combinatorial Test Suite (>=15 Combinat
     const buffer = ctx.createBuffer(1, 48000, 48000);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(engine.getInput());
+    source.connect(engine.getInput() as any);
     source.start(0);
 
     // Initial Mode A (Raw)
@@ -214,12 +204,11 @@ describe('Tier 3: Pairwise Cross-Feature Combinatorial Test Suite (>=15 Combinat
   // ===========================================================================
   it('C04: Guidance Card Trigger -> Preset Apply -> Slider Synchronization -> RBJ Analytical Curve Morphing', () => {
     let selectedPresetKey: any = null;
-    let selectedMode: any = null;
 
     const { container, unmount } = renderUI(
       React.createElement(GuidanceCards, {
         onSelectPreset: (p) => { selectedPresetKey = p; },
-        onSelectMode: (m) => { selectedMode = m; },
+        onSelectMode: () => {},
       })
     );
 
@@ -322,7 +311,7 @@ describe('Tier 3: Pairwise Cross-Feature Combinatorial Test Suite (>=15 Combinat
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    source.connect(engine.getInput());
+    source.connect(engine.getInput() as any);
     source.start(0, 1.0); // Seek to 1.0s
 
     engine.setMode('INTERNAL_SIM', false);
@@ -619,11 +608,9 @@ describe('Tier 3: Pairwise Cross-Feature Combinatorial Test Suite (>=15 Combinat
   // Combination 16: Guidance Drawer Open -> Scientific Table Review -> Recommended Mode Selection -> Studio Alignment
   // ===========================================================================
   it('C16: Guidance Drawer Open -> Scientific Table Review -> Recommended Mode Selection -> Studio Alignment', () => {
-    let modeApplied: any = null;
-
     const { container, unmount } = renderUI(
       React.createElement(GuidanceCards, {
-        onSelectMode: (m) => { modeApplied = m; },
+        onSelectMode: () => {},
       })
     );
 

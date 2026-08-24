@@ -17,32 +17,20 @@ import { AcousticEngine } from '../../src/audio/AcousticEngine';
 import {
   DEFAULT_DSP_PARAMS,
   ACOUSTIC_PRESETS,
-  PARAMETER_LIMITS,
 } from '../../src/audio/constants';
 import {
   calculateDynamicPreAttenuation,
-  calculateTheoreticalBranchResponse,
 } from '../../src/audio/biquadMath';
 import {
   createSyntheticVocalBuffer,
+  SAMPLE_AUDIO_PRESETS,
 } from '../../src/audio/sampleAudio';
 import {
-  calculateSpectralGapSummary,
-  calculateSpectralGapMetrics,
-} from '../../src/utils/frequencyMapping';
-import {
   audioBufferToWav,
-  exportAudioBufferAsWavBlob,
   renderAndExportWav,
 } from '../../src/utils/audioBufferToWav';
 import { SpectrumVisualizerRenderer } from '../../src/audio/SpectrumVisualizerRenderer';
 import { GuidanceCards } from '../../src/components/GuidanceCards';
-import { ExportModal } from '../../src/components/ExportModal';
-import { PresetSelector } from '../../src/components/PresetSelector';
-import { ParameterSliders } from '../../src/components/ParameterSliders';
-import { ModeSelector } from '../../src/components/ModeSelector';
-import { AudioControls } from '../../src/components/AudioControls';
-import App from '../../src/App';
 
 import {
   AudioContextMock,
@@ -57,14 +45,14 @@ function renderUI(ui: React.ReactElement) {
   const root = createRoot(container);
 
   act(() => {
-    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, ui));
+    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: ui }));
   });
 
   return {
     container,
     rerender: (newUi: React.ReactElement) => {
       act(() => {
-        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, newUi));
+        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: newUi }));
       });
     },
     unmount: () => {
@@ -117,12 +105,11 @@ describe('Tier 4: Realistic Studio Workflow Scenarios (>=5 Scenarios)', () => {
 
     // 4. Singer connects dual analysers to 60fps Spectrum Visualizer and inspects gap
     const canvas = document.createElement('canvas');
-    let liveMetrics: any = null;
     const renderer = new SpectrumVisualizerRenderer({
       canvas,
       rawAnalyser: engine.getRawAnalyser(),
       processedAnalyser: engine.getProcessedAnalyser(),
-      onMetricsUpdate: (m) => { liveMetrics = m; },
+      onMetricsUpdate: () => {},
     });
     renderer.resize(800, 300, 1);
     renderer.render();
@@ -156,7 +143,7 @@ describe('Tier 4: Realistic Studio Workflow Scenarios (>=5 Scenarios)', () => {
 
     // 1. Podcaster loads synthetic Baritone vocal sample
     const podcasterBuffer = createSyntheticVocalBuffer(ctx as unknown as AudioContext, {
-      preset: 'male_baritone',
+      ...SAMPLE_AUDIO_PRESETS.male_baritone.options,
       duration: 4.0,
     });
     expect(podcasterBuffer.duration).toBe(4.0);
@@ -329,9 +316,9 @@ describe('Tier 4: Realistic Studio Workflow Scenarios (>=5 Scenarios)', () => {
     engine.applyParameters(customAnatomicalParams, true);
 
     // 4. Performs seamless playback through the custom filter pipeline
-    const source = ctx.createBufferSource();
+    const source = (ctx as any).createBufferSource();
     source.buffer = demoBuffer;
-    source.connect(engine.getInput());
+    source.connect(engine.getInput() as any);
     source.start(0);
 
     // 5. Switches through all 3 modes

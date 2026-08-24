@@ -79,18 +79,18 @@ describe('AcousticEngine Headroom Staging & Anti-Clipping Integrity', () => {
     mode: 'RAW' | 'INTERNAL_SIM' | 'COMPENSATED',
     inputBuffer: any
   ): Promise<{ maxPeak: number; rms: number }> {
-    const offlineCtx = new OfflineAudioContextMock(1, FRAME_LENGTH, SAMPLE_RATE);
+    const offlineCtx = new OfflineAudioContextMock(1, FRAME_LENGTH, SAMPLE_RATE) as unknown as OfflineAudioContext;
     const engine = new AcousticEngine(offlineCtx);
     engine.applyParameters(engineParams, true);
     engine.setMode(mode, true);
 
-    const src = offlineCtx.createBufferSource();
+    const src = (offlineCtx as any).createBufferSource();
     src.buffer = inputBuffer;
-    src.connect(engine.getInput());
-    engine.getOutput().connect(offlineCtx.destination);
+    src.connect(engine.getInput() as any);
+    (engine.getOutput() as any).connect((offlineCtx as any).destination);
     src.start(0);
 
-    const rendered = await offlineCtx.startRendering();
+    const rendered = await (offlineCtx as any).startRendering();
     const outData = rendered.getChannelData(0);
 
     let maxPeak = 0;

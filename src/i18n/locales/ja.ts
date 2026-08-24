@@ -3,7 +3,7 @@ import type { TranslationDictionary } from '../types';
 export const ja: TranslationDictionary = {
   app: {
     title: 'VocalMirror（ボーカルミラー）',
-    versionBadge: 'Studio v2.0',
+    versionBadge: 'v0.1',
     subtitle: '頭蓋骨伝導音響シミュレータ＆音声対峙スタジオ',
     footer: {
       tagline: 'VocalMirror • 高精度頭蓋骨伝導シミュレーション • 完全クライアントサイド Web Audio アーキテクチャ',

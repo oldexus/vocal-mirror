@@ -26,36 +26,36 @@ export class AcousticEngine {
   private isOffline: boolean;
 
   // Master Nodes
-  private inputNode: GainNode;
-  private outputNode: GainNode;
-  private compressor: DynamicsCompressorNode;
-  private rawAnalyser: AnalyserNode;
-  private processedAnalyser: AnalyserNode;
+  private inputNode!: GainNode;
+  private outputNode!: GainNode;
+  private compressor!: DynamicsCompressorNode;
+  private rawAnalyser!: AnalyserNode;
+  private processedAnalyser!: AnalyserNode;
 
   // Mode Crossfade Routing Gains
-  private rawGain: GainNode;
-  private fwdGain: GainNode;
-  private invGain: GainNode;
+  private rawGain!: GainNode;
+  private fwdGain!: GainNode;
+  private invGain!: GainNode;
 
   // Forward (Air-to-Internal / Mode B) Chain Nodes
-  private fwdPreGain: GainNode;
-  private fwdLowShelf: BiquadFilterNode;
-  private fwdMandiblePeak: BiquadFilterNode;
-  private fwdSinusPeak: BiquadFilterNode;
-  private fwdAntiResNotch: BiquadFilterNode;
-  private fwdTissueLP: BiquadFilterNode;
-  private fwdHighShelf: BiquadFilterNode;
-  private fwdPostGain: GainNode;
+  private fwdPreGain!: GainNode;
+  private fwdLowShelf!: BiquadFilterNode;
+  private fwdMandiblePeak!: BiquadFilterNode;
+  private fwdSinusPeak!: BiquadFilterNode;
+  private fwdAntiResNotch!: BiquadFilterNode;
+  private fwdTissueLP!: BiquadFilterNode;
+  private fwdHighShelf!: BiquadFilterNode;
+  private fwdPostGain!: GainNode;
 
   // Inverse (Compensation / Mode C) Chain Nodes
-  private invPreGain: GainNode;
-  private invHighPass: BiquadFilterNode;
-  private invLowShelfCut: BiquadFilterNode;
-  private invMandibleDip: BiquadFilterNode;
-  private invSinusDip: BiquadFilterNode;
-  private invPresenceBoost: BiquadFilterNode;
-  private invHighShelfAir: BiquadFilterNode;
-  private invPostGain: GainNode;
+  private invPreGain!: GainNode;
+  private invHighPass!: BiquadFilterNode;
+  private invLowShelfCut!: BiquadFilterNode;
+  private invMandibleDip!: BiquadFilterNode;
+  private invSinusDip!: BiquadFilterNode;
+  private invPresenceBoost!: BiquadFilterNode;
+  private invHighShelfAir!: BiquadFilterNode;
+  private invPostGain!: GainNode;
 
   // State
   private currentMode: ListeningMode = 'RAW';
@@ -242,7 +242,7 @@ export class AcousticEngine {
     this.setParam(this.fwdHighShelf.frequency, p.highShelfFreq, now, timeConst);
     this.setParam(this.fwdHighShelf.gain, p.highShelfGain, now, timeConst);
 
-    const fwdPostGainLinear = dbToLinear(p.masterGain + 1.5);
+    const fwdPostGainLinear = dbToLinear(1.5);
     this.setParam(this.fwdPostGain.gain, fwdPostGainLinear, now, timeConst);
 
     // 3. Inverse Node Parameter Updates
@@ -273,7 +273,7 @@ export class AcousticEngine {
       timeConst
     );
 
-    const invPostGainLinear = dbToLinear(p.masterGain + 1.0);
+    const invPostGainLinear = dbToLinear(1.0);
     this.setParam(this.invPostGain.gain, invPostGainLinear, now, timeConst);
 
     // 4. Output Trim
@@ -396,7 +396,7 @@ export class AcousticEngine {
   }
 
   public async suspend(): Promise<void> {
-    if (this.ctx.state === 'running' && 'suspend' in this.ctx) {
+    if (this.ctx instanceof AudioContext && this.ctx.state === 'running') {
       await this.ctx.suspend();
     }
   }
@@ -430,6 +430,10 @@ export class AcousticEngine {
       this.rawAnalyser.disconnect();
       this.processedAnalyser.disconnect();
       this.outputNode.disconnect();
+
+      if (this.ctx && typeof (this.ctx as any).close === 'function' && this.ctx.state !== 'closed') {
+        (this.ctx as any).close().catch(() => {});
+      }
     } catch {
       // Ignore disconnect errors during teardown
     }

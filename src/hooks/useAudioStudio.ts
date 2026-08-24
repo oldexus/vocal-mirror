@@ -79,6 +79,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   // ---------------------------------------------------------------------------
   // 2. Mutable Engine & Transport References
   // ---------------------------------------------------------------------------
+  const isMountedRef = useRef<boolean>(true);
   const engineRef = useRef<AcousticEngine | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -86,6 +87,8 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   const recordedChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
   const recordingStartTimeRef = useRef<number>(0);
+  const recordingOpIdRef = useRef<number>(0);
+  const playbackOpIdRef = useRef<number>(0);
 
   const playbackStartTimeRef = useRef<number>(0);
   const playbackWallStartTimeRef = useRef<number>(0);
@@ -111,6 +114,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
 
   // Sync analyser nodes if needed on initial mount
   useEffect(() => {
+    isMountedRef.current = true;
     if (engineRef.current) {
       setRawAnalyser(engineRef.current.getRawAnalyser());
       setProcessedAnalyser(engineRef.current.getProcessedAnalyser());
@@ -118,10 +122,24 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
       setAudioContextState(ctx.state);
       if ('onstatechange' in ctx) {
         ctx.onstatechange = () => {
-          setAudioContextState(ctx.state);
+          if (isMountedRef.current) {
+            setAudioContextState(ctx.state);
+          }
         };
       }
     }
+
+    return () => {
+      isMountedRef.current = false;
+      if (engineRef.current) {
+        try {
+          const ctx = engineRef.current.getContext();
+          if ('onstatechange' in ctx) {
+            ctx.onstatechange = null;
+          }
+        } catch {}
+      }
+    };
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -138,7 +156,9 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
       const ctx = engine.getContext();
       if ('onstatechange' in ctx) {
         ctx.onstatechange = () => {
-          setAudioContextState(ctx.state);
+          if (isMountedRef.current) {
+            setAudioContextState(ctx.state);
+          }
         };
       }
     }
@@ -193,6 +213,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   }, []);
 
   const stop = useCallback(() => {
+    playbackOpIdRef.current++;
     stopSourceNode();
     pausedAtTimeRef.current = 0;
     setIsPlaying(false);
@@ -201,6 +222,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   }, [stopSourceNode]);
 
   const pause = useCallback(() => {
+    playbackOpIdRef.current++;
     if (!isPlayingRef.current) return;
 
     const elapsed = (Date.now() - playbackWallStartTimeRef.current) / 1000;
@@ -220,6 +242,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
 
   const startPlayback = useCallback(
     async (startTimeOffset?: number) => {
+      const opId = ++playbackOpIdRef.current;
       try {
         const buffer = audioBufferRef.current;
         if (!buffer) {
@@ -227,10 +250,15 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         }
 
         const engine = await getOrCreateEngine();
+        if (playbackOpIdRef.current !== opId) return;
+
         await engine.resume();
+        if (playbackOpIdRef.current !== opId) return;
+
         setAudioContextState(engine.getContext().state);
 
         stopSourceNode();
+        if (playbackOpIdRef.current !== opId) return;
 
         const offset = Math.max(
           0,
@@ -276,7 +304,8 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
           setCurrentTime(elapsed);
         }, 50);
       } catch (err: any) {
-        console.error('Audio playback failed:', err);
+        if (playbackOpIdRef.current !== opId) return;
+        console.error('Audio playback failed');
         setError(err?.message || 'Playback error');
         stop();
       }
@@ -329,15 +358,33 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   // ---------------------------------------------------------------------------
   // 5. MediaRecorder Microphone Capture
   // ---------------------------------------------------------------------------
+  const cancelRecording = useCallback(() => {
+    recordingOpIdRef.current++;
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    recordedChunksRef.current = [];
+    setIsRecording(false);
+    setIsProcessing(false);
+    setRecordingDuration(0);
+  }, []);
+
   const startRecording = useCallback(async () => {
+    const opId = ++recordingOpIdRef.current;
     try {
       stop();
       setError(null);
       setIsProcessing(true);
-
-      const engine = await getOrCreateEngine();
-      await engine.resume();
-      setAudioContextState(engine.getContext().state);
 
       if (!navigator?.mediaDevices?.getUserMedia) {
         throw new Error('Microphone access failed: MediaDevices API not available');
@@ -354,10 +401,53 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
           },
         });
       } catch (e: any) {
+        if (recordingOpIdRef.current !== opId) return;
         if (e?.name === 'NotAllowedError' || /permission/i.test(e?.message)) {
           throw e;
         }
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      if (recordingOpIdRef.current !== opId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const engine = await getOrCreateEngine();
+      if (recordingOpIdRef.current !== opId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      await engine.resume();
+      if (recordingOpIdRef.current !== opId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      setAudioContextState(engine.getContext().state);
+
+      // Attach track.onended listener to every audio track
+      stream.getAudioTracks().forEach((track) => {
+        track.onended = () => {
+          cancelRecording();
+          setError('Microphone disconnected or permission revoked');
+        };
+      });
+
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      if (recordingOpIdRef.current !== opId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
 
       mediaStreamRef.current = stream;
@@ -382,6 +472,11 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         }
       };
 
+      recorder.onerror = (_e) => {
+        cancelRecording();
+        setError('Recording failed due to media hardware error');
+      };
+
       recorder.onstart = () => {
         setIsRecording(true);
         setIsProcessing(false);
@@ -393,18 +488,34 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         }, 100);
       };
 
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      if (recordingOpIdRef.current !== opId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       recorder.start(100);
       mediaRecorderRef.current = recorder;
     } catch (err: any) {
-      console.error('Failed to start microphone recording:', err);
+      if (recordingOpIdRef.current !== opId) return;
+      console.error('Failed to start microphone recording');
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
       const isPermission = err?.name === 'NotAllowedError' || /permission/i.test(err?.message);
       setError(isPermission ? 'Microphone permission denied' : err?.message || 'Microphone access failed');
       setIsRecording(false);
       setIsProcessing(false);
     }
-  }, [stop, getOrCreateEngine]);
+  }, [stop, getOrCreateEngine, cancelRecording]);
 
   const stopRecording = useCallback(async () => {
+    const opId = ++recordingOpIdRef.current;
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === 'inactive') return;
 
@@ -418,6 +529,11 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
     return new Promise<void>((resolve) => {
       recorder.onstop = async () => {
         try {
+          if (recordingOpIdRef.current !== opId) {
+            resolve();
+            return;
+          }
+
           const blob = new Blob(recordedChunksRef.current, {
             type: recorder.mimeType || 'audio/webm',
           });
@@ -429,8 +545,22 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
           }
 
           const arrayBuffer = await blob.arrayBuffer();
+          if (recordingOpIdRef.current !== opId) {
+            resolve();
+            return;
+          }
+
           const engine = await getOrCreateEngine();
+          if (recordingOpIdRef.current !== opId) {
+            resolve();
+            return;
+          }
+
           const decoded = await engine.getContext().decodeAudioData(arrayBuffer);
+          if (recordingOpIdRef.current !== opId) {
+            resolve();
+            return;
+          }
 
           audioBufferRef.current = decoded;
           setAudioBufferState(decoded);
@@ -441,7 +571,11 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
           setIsProcessing(false);
           resolve();
         } catch (err: any) {
-          console.error('Decoding recorded audio failed:', err);
+          if (recordingOpIdRef.current !== opId) {
+            resolve();
+            return;
+          }
+          console.error('Decoding recorded audio failed');
           setError('Failed to decode recorded audio. Try loading demo audio instead.');
           setIsRecording(false);
           setIsProcessing(false);
@@ -453,40 +587,25 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
     });
   }, [getOrCreateEngine]);
 
-  const cancelRecording = useCallback(() => {
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {}
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-    recordedChunksRef.current = [];
-    setIsRecording(false);
-    setIsProcessing(false);
-    setRecordingDuration(0);
-  }, []);
-
   // ---------------------------------------------------------------------------
   // 6. Synthetic Demo Audio Fallback
   // ---------------------------------------------------------------------------
   const loadDemoAudio = useCallback(
     async (presetKey: DemoVoicePresetKey | string = 'male_baritone') => {
+      const opId = ++recordingOpIdRef.current;
+      playbackOpIdRef.current++;
       try {
         stop();
         setIsProcessing(true);
         setError(null);
 
         const engine = await getOrCreateEngine();
+        if (recordingOpIdRef.current !== opId) return;
+
         const preset =
           SAMPLE_AUDIO_PRESETS[presetKey as DemoVoicePresetKey] || SAMPLE_AUDIO_PRESETS.male_baritone;
         const buffer = createSyntheticVocalBuffer(engine.getContext(), preset.options);
+        if (recordingOpIdRef.current !== opId) return;
 
         audioBufferRef.current = buffer;
         setAudioBufferState(buffer);
@@ -495,7 +614,8 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         setSourceType('SAMPLE');
         setIsProcessing(false);
       } catch (err: any) {
-        console.error('Failed to generate synthetic demo buffer:', err);
+        if (recordingOpIdRef.current !== opId) return;
+        console.error('Failed to generate synthetic demo buffer');
         setError(err?.message || 'Failed to load demo voice');
         setIsProcessing(false);
       }
@@ -514,8 +634,20 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   }, []);
 
   const updateParameter = useCallback(<K extends keyof DSPParameters>(key: K, value: number) => {
+    if (
+      (key as any) === '__proto__' ||
+      (key as any) === 'constructor' ||
+      (key as any) === 'prototype' ||
+      !Object.prototype.hasOwnProperty.call(PARAMETER_LIMITS, key)
+    ) {
+      return;
+    }
+
     const limit = PARAMETER_LIMITS[key];
-    const clampedVal = limit ? Math.max(limit.min, Math.min(limit.max, value)) : value;
+    if (!limit) return;
+
+    const safeValue = typeof value === 'number' && Number.isFinite(value) ? value : limit.default;
+    const clampedVal = Math.max(limit.min, Math.min(limit.max, safeValue));
 
     setParamsState((prev) => {
       const updated = { ...prev, [key]: clampedVal };
@@ -530,13 +662,25 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   const updateParam = updateParameter;
 
   const updateParameters = useCallback((newParams: Partial<DSPParameters>) => {
+    if (!newParams || typeof newParams !== 'object') return;
+
     setParamsState((prev) => {
       const updated = { ...prev };
       for (const [k, v] of Object.entries(newParams)) {
-        if (v !== undefined) {
-          const key = k as keyof DSPParameters;
-          const limit = PARAMETER_LIMITS[key];
-          (updated as any)[key] = limit ? Math.max(limit.min, Math.min(limit.max, v)) : v;
+        if (
+          k === '__proto__' ||
+          k === 'constructor' ||
+          k === 'prototype' ||
+          !Object.prototype.hasOwnProperty.call(PARAMETER_LIMITS, k)
+        ) {
+          continue;
+        }
+
+        const key = k as keyof DSPParameters;
+        const limit = PARAMETER_LIMITS[key];
+        if (limit && v !== undefined) {
+          const safeVal = typeof v === 'number' && Number.isFinite(v) ? v : limit.default;
+          updated[key] = Math.max(limit.min, Math.min(limit.max, safeVal));
         }
       }
       if (engineRef.current) {
@@ -549,7 +693,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
 
   const applyPreset = useCallback((presetKey: PhysiologicalPresetKey) => {
     const preset = ACOUSTIC_PRESETS[presetKey];
-    if (!preset) return;
+    if (!preset || typeof preset !== 'object' || !preset.params) return;
 
     setParamsState(preset.params);
     setCurrentPreset(presetKey);
@@ -586,6 +730,8 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
 
   const setAudioBuffer = useCallback(
     (buffer: AudioBuffer | null, type: AudioSourceType = 'BUFFER') => {
+      playbackOpIdRef.current++;
+      recordingOpIdRef.current++;
       stop();
       audioBufferRef.current = buffer;
       setAudioBufferState(buffer);
@@ -597,6 +743,8 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   );
 
   const clearAudio = useCallback(() => {
+    playbackOpIdRef.current++;
+    recordingOpIdRef.current++;
     stop();
     audioBufferRef.current = null;
     setAudioBufferState(null);
@@ -610,14 +758,44 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   }, []);
 
   // ---------------------------------------------------------------------------
-  // 8. Lifecycle & Teardown
+  // 8. Lifecycle, Tab Visibility & Teardown
   // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (typeof document === 'undefined') return;
+
+      if (document.visibilityState === 'hidden') {
+        // Unconditionally cancel recording to prevent stuck mic hardware and invalidate pending operations
+        cancelRecording();
+      } else if (document.visibilityState === 'visible') {
+        // Sync AudioContext state on resume
+        if (engineRef.current && isMountedRef.current) {
+          const ctx = engineRef.current.getContext();
+          setAudioContextState(ctx.state);
+        }
+      }
+    };
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      if (typeof document !== 'undefined' && document.removeEventListener) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [cancelRecording]);
+
   useEffect(() => {
     if (autoLoadDemo) {
       loadDemoAudio('male_baritone');
     }
 
     return () => {
+      isMountedRef.current = false;
+      playbackOpIdRef.current++;
+      recordingOpIdRef.current++;
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
         progressTimerRef.current = null;
@@ -634,11 +812,28 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         } catch {}
         sourceNodeRef.current = null;
       }
+      if (mediaRecorderRef.current) {
+        try {
+          if (mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+          }
+          mediaRecorderRef.current.ondataavailable = null;
+          mediaRecorderRef.current.onstop = null;
+          mediaRecorderRef.current.onerror = null;
+        } catch {}
+        mediaRecorderRef.current = null;
+      }
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((t) => t.stop());
         mediaStreamRef.current = null;
       }
       if (engineRef.current) {
+        try {
+          const ctx = engineRef.current.getContext();
+          if ('onstatechange' in ctx) {
+            ctx.onstatechange = null;
+          }
+        } catch {}
         engineRef.current.destroy();
         engineRef.current = null;
       }

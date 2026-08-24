@@ -62,14 +62,14 @@ function renderUI(ui: React.ReactElement) {
   const root = createRoot(container);
 
   act(() => {
-    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, ui));
+    root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: ui }));
   });
 
   return {
     container,
     rerender: (newUi: React.ReactElement) => {
       act(() => {
-        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en' }, newUi));
+        root.render(React.createElement(LanguageProvider, { defaultLanguage: 'en', children: newUi }));
       });
     },
     unmount: () => {

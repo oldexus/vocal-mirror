@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   AudioContextMock,
   OfflineAudioContextMock,
-  BiquadFilterNodeMock,
-  GainNodeMock,
-  AnalyserNodeMock,
   AudioBufferMock,
-  AudioBufferSourceNodeMock,
   MediaStreamMock,
   MediaStreamTrackMock,
   MediaRecorderMock,

@@ -3,7 +3,7 @@ import type { TranslationDictionary } from '../types';
 export const en: TranslationDictionary = {
   app: {
     title: 'VocalMirror',
-    versionBadge: 'Studio v2.0',
+    versionBadge: 'v0.1',
     subtitle: 'Acoustic Perception Calibrator & Voice Confrontation Studio',
     footer: {
       tagline: 'VocalMirror • High-Fidelity Cranial Bone Conduction Simulation • Zero-Server Web Audio Architecture',

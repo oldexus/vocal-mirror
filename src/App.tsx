@@ -222,6 +222,8 @@ const StudioMain: React.FC = () => {
             {t('app.footer.tagline')}
           </p>
           <div className="flex items-center space-x-4">
+            <span className="font-mono font-semibold text-cyan-400/90">{t('app.versionBadge')}</span>
+            <span>&bull;</span>
             <span className="font-mono text-slate-400">{t('app.footer.latencyBadge')}</span>
             <span>&bull;</span>
             <span className="font-mono text-slate-400">{t('app.footer.webAudioBadge')}</span>
@@ -253,23 +255,23 @@ const StudioMain: React.FC = () => {
             <div className="space-y-4 text-xs text-slate-300">
               <div>
                 <h4 className="font-bold text-slate-100 uppercase tracking-wider text-[11px] mb-2 text-cyan-400">
-                  {t('help.sections.transport.title')}
+                  {t('help.sections.transport')}
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.transport.play')}</span>
+                    <span>{t('help.shortcuts.playPause')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-cyan-300 font-bold">Space</kbd>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.transport.record')}</span>
+                    <span>{t('help.shortcuts.recordStop')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-rose-300 font-bold">R</kbd>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.transport.loop')}</span>
+                    <span>{t('help.shortcuts.toggleLoop')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-cyan-300 font-bold">L</kbd>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.transport.help')}</span>
+                    <span>{t('help.shortcuts.help')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-cyan-300 font-bold">H / ?</kbd>
                   </div>
                 </div>
@@ -277,19 +279,19 @@ const StudioMain: React.FC = () => {
 
               <div>
                 <h4 className="font-bold text-slate-100 uppercase tracking-wider text-[11px] mb-2 text-amber-400">
-                  {t('help.sections.modes.title')}
+                  {t('help.sections.listening')}
                 </h4>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.modes.modeA')}</span>
+                    <span>{t('help.shortcuts.modeA')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-sky-300 font-bold">1</kbd>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.modes.modeB')}</span>
+                    <span>{t('help.shortcuts.modeB')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-amber-300 font-bold">2</kbd>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                    <span>{t('help.sections.modes.modeC')}</span>
+                    <span>{t('help.shortcuts.modeC')}</span>
                     <kbd className="rounded bg-slate-800 px-2 py-0.5 font-mono text-emerald-300 font-bold">3</kbd>
                   </div>
                 </div>
@@ -298,7 +300,7 @@ const StudioMain: React.FC = () => {
               <div className="rounded-xl border border-indigo-900/40 bg-indigo-950/30 p-3 flex items-start space-x-2 text-indigo-200">
                 <Headphones className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed">
-                  <strong>Tip:</strong> {t('help.tip')}
+                  <strong>Tip:</strong> {t('help.tip.text')}
                 </p>
               </div>
             </div>

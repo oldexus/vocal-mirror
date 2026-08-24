@@ -11,6 +11,7 @@ lerna-debug.log*
 .agents/
 .pytest_cache/
 coverage/
+graphify-out/
 
 # OS Files
 .DS_Store

@@ -10,6 +10,7 @@ import {
   downloadWavBlob,
   downloadAudioBufferAsWav,
   renderAndExportWav,
+  sanitizeFilename,
 } from '../../../src/utils/audioBufferToWav';
 import { AcousticEngine } from '../../../src/audio/AcousticEngine';
 import { DEFAULT_DSP_PARAMS } from '../../../src/audio/constants';
@@ -482,6 +483,151 @@ describe('audioBufferToWav Binary RIFF WAV Encoder', () => {
 
       expect(appendChildSpy).toHaveBeenCalled();
       vi.advanceTimersByTime(1000);
+    });
+  });
+
+  // -------------------------------------------------------------
+  // 9. Filename Sanitization & Path Traversal Guardrails
+  // -------------------------------------------------------------
+  describe('9. Filename Sanitization & Path Traversal Guardrails', () => {
+    it('strips non-printable ASCII control characters (\\x00-\\x1f, \\x7f)', () => {
+      expect(sanitizeFilename('\x00\x08my_\x1frecording\x7f.wav')).toBe('my_recording.wav');
+    });
+
+    it('sanitizes illegal path and URL characters [/\\\\?%*:|"<>~#&{}]', () => {
+      const hostile = 'test/path\\file?name%with*star:colon|pipe"quote<lt>gt~tilde#hash&amp{brace}.wav';
+      const sanitized = sanitizeFilename(hostile);
+      expect(sanitized).not.toMatch(/[/\\?%*:|"<>~#&{}]/);
+      expect(sanitized).toBe('test_path_file_name_with_star_colon_pipe_quote_lt_gt_tilde_hash_amp_brace_.wav');
+    });
+
+    it('collapses consecutive dots to prevent path traversal', () => {
+      expect(sanitizeFilename('../../../secret/export..wav')).toBe('._._._secret_export.wav');
+      expect(sanitizeFilename('my...vocal....recording.wav')).toBe('my.vocal.recording.wav');
+    });
+
+    it('protects against Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)', () => {
+      expect(sanitizeFilename('CON')).toBe('_CON');
+      expect(sanitizeFilename('con.wav')).toBe('_con.wav');
+      expect(sanitizeFilename('PRN.wav')).toBe('_PRN.wav');
+      expect(sanitizeFilename('aux.wav')).toBe('_aux.wav');
+      expect(sanitizeFilename('NUL')).toBe('_NUL');
+      expect(sanitizeFilename('COM1.wav')).toBe('_COM1.wav');
+      expect(sanitizeFilename('com9.wav')).toBe('_com9.wav');
+      expect(sanitizeFilename('LPT3.wav')).toBe('_LPT3.wav');
+    });
+
+    it('truncates filename to a safe maximum length of 128 characters', () => {
+      const longName = 'a'.repeat(200) + '.wav';
+      const result = sanitizeFilename(longName);
+      expect(result.length).toBe(128);
+    });
+
+    it('falls back to "recording.wav" on empty, whitespace, or invalid inputs', () => {
+      expect(sanitizeFilename('')).toBe('recording.wav');
+      expect(sanitizeFilename('   ')).toBe('recording.wav');
+      expect(sanitizeFilename('.wav')).toBe('recording.wav');
+      expect(sanitizeFilename('  .wav  ')).toBe('recording.wav');
+      expect(sanitizeFilename(null as any)).toBe('recording.wav');
+      expect(sanitizeFilename(undefined as any)).toBe('recording.wav');
+    });
+  });
+
+  // -------------------------------------------------------------
+  // 10. AudioBuffer Boundary & Format Validation Guardrails
+  // -------------------------------------------------------------
+  describe('10. AudioBuffer Boundary & Format Validation Guardrails', () => {
+    it('rejects buffers with non-integer, zero, negative, or excessive (>32) channel counts', () => {
+      expect(() => audioBufferToWav({
+        numberOfChannels: 0,
+        sampleRate: 48000,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: -1,
+        sampleRate: 48000,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 33,
+        sampleRate: 48000,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1.5,
+        sampleRate: 48000,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: NaN,
+        sampleRate: 48000,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+    });
+
+    it('rejects buffers with out-of-range (<8000 or >384000) or non-finite sample rates', () => {
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: 7999,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: 384001,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: NaN,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: Infinity,
+        length: 100,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+    });
+
+    it('rejects buffers with negative or non-integer sample lengths', () => {
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: 48000,
+        length: -5,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+
+      expect(() => audioBufferToWav({
+        numberOfChannels: 1,
+        sampleRate: 48000,
+        length: 10.5,
+        getChannelData: () => new Float32Array(100),
+      } as any)).toThrow(TypeError);
+    });
+
+    it('accepts multi-channel audio within allowed range (e.g. 8 and 32 channels)', () => {
+      const buffer8 = createMockAudioBuffer(8, 50, 48000);
+      const wav8 = audioBufferToWav(buffer8);
+      expect(wav8.byteLength).toBe(44 + 50 * 8 * 2);
+
+      const buffer32 = createMockAudioBuffer(32, 10, 48000);
+      const wav32 = audioBufferToWav(buffer32);
+      expect(wav32.byteLength).toBe(44 + 10 * 32 * 2);
     });
   });
 });
