@@ -335,6 +335,62 @@ describe('Studio UI Component Test Suite', () => {
       expect(container.textContent).toMatch(/Custom/i);
       unmount();
     });
+
+    it('handles JSON export and import button interactions based on Pro license status', () => {
+      const onExportPresets = vi.fn();
+      const onImportPresets = vi.fn();
+      const onOpenPricing = vi.fn();
+
+      // Test 1: Free tier user triggers onOpenPricing when clicking export/import
+      const { container, rerender, unmount } = renderUI(
+        <PresetSelector
+          activePreset="natural_standard"
+          onSelectPreset={() => {}}
+          onReset={() => {}}
+          onExportPresets={onExportPresets}
+          onImportPresets={onImportPresets}
+          isPro={false}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      const exportBtn = container.querySelector('[data-testid="export-presets-btn"]') as HTMLButtonElement;
+      const importBtn = container.querySelector('[data-testid="import-presets-btn"]') as HTMLButtonElement;
+
+      expect(exportBtn).not.toBeNull();
+      expect(importBtn).not.toBeNull();
+
+      act(() => {
+        exportBtn.click();
+      });
+      expect(onOpenPricing).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        importBtn.click();
+      });
+      expect(onOpenPricing).toHaveBeenCalledTimes(2);
+      expect(onExportPresets).not.toHaveBeenCalled();
+
+      // Test 2: Pro tier user triggers onExportPresets directly
+      rerender(
+        <PresetSelector
+          activePreset="natural_standard"
+          onSelectPreset={() => {}}
+          onReset={() => {}}
+          onExportPresets={onExportPresets}
+          onImportPresets={onImportPresets}
+          isPro={true}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      act(() => {
+        exportBtn.click();
+      });
+      expect(onExportPresets).toHaveBeenCalledTimes(1);
+
+      unmount();
+    });
   });
 
   // ==========================================
@@ -374,6 +430,77 @@ describe('Studio UI Component Test Suite', () => {
       });
 
       expect(onParamChange).toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('enforces Pro gating on advanced sliders for free tier users and unlocks all for Pro users', () => {
+      const onOpenPricing = vi.fn();
+      const onParamChange = vi.fn();
+
+      // Free user render
+      const { container, rerender, unmount } = renderUI(
+        <ParameterSliders
+          params={DEFAULT_DSP_PARAMS}
+          onParamChange={onParamChange}
+          onResetParam={() => {}}
+          isPro={false}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      // Free parameters should remain enabled
+      const freeLowShelfGain = container.querySelector('input[name="lowShelfGain"]') as HTMLInputElement;
+      const freeMandibleResGain = container.querySelector('input[name="mandibleResGain"]') as HTMLInputElement;
+      expect(freeLowShelfGain).not.toBeNull();
+      expect(freeLowShelfGain.disabled).toBe(false);
+      expect(freeMandibleResGain.disabled).toBe(false);
+
+      // Pro parameters should be disabled and show PRO lock
+      const lockedMandibleFreq = container.querySelector('input[name="mandibleResFreq"]') as HTMLInputElement;
+      expect(lockedMandibleFreq).not.toBeNull();
+      expect(lockedMandibleFreq.disabled).toBe(true);
+
+      // In default view, 5 pro parameters are visible
+      const initialProLockBtns = container.querySelectorAll('button[aria-label*="PRO lock"]');
+      expect(initialProLockBtns.length).toBe(5);
+
+      // Expand advanced section to reveal remaining 7 pro parameters
+      const advancedToggleBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Advanced')
+      ) as HTMLButtonElement;
+      expect(advancedToggleBtn).toBeDefined();
+
+      act(() => {
+        advancedToggleBtn.click();
+      });
+
+      // Now all 12 pro parameters should show PRO lock buttons
+      const allProLockBtns = container.querySelectorAll('button[aria-label*="PRO lock"]');
+      expect(allProLockBtns.length).toBe(12);
+
+      // Clicking PRO lock button triggers pricing modal
+      act(() => {
+        (allProLockBtns[0] as HTMLButtonElement).click();
+      });
+      expect(onOpenPricing).toHaveBeenCalledTimes(1);
+
+      // Re-render as Pro user
+      rerender(
+        <ParameterSliders
+          params={DEFAULT_DSP_PARAMS}
+          onParamChange={onParamChange}
+          onResetParam={() => {}}
+          isPro={true}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      // All sliders should now be enabled and no lock buttons present
+      const unlockedMandibleFreq = container.querySelector('input[name="mandibleResFreq"]') as HTMLInputElement;
+      expect(unlockedMandibleFreq.disabled).toBe(false);
+      const remainingLockBtns = container.querySelectorAll('button[aria-label*="PRO lock"]');
+      expect(remainingLockBtns.length).toBe(0);
 
       unmount();
     });

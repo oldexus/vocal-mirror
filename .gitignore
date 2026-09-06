@@ -12,6 +12,7 @@ lerna-debug.log*
 .pytest_cache/
 coverage/
 graphify-out/
+.gitnexus/
 
 # OS Files
 .DS_Store

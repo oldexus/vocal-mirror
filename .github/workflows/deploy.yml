@@ -39,7 +39,7 @@ jobs:
       - name: Run Typecheck (tsc --noEmit)
         run: npm run typecheck
 
-      - name: Run Vitest Suite (650 tests)
+      - name: Run Vitest Suite (683 tests)
         run: npm test
 
       - name: Build Production Distribution (vite build)

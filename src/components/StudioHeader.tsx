@@ -5,6 +5,7 @@ import {
   Zap,
   HelpCircle,
   Globe,
+  Sparkles,
 } from 'lucide-react';
 import { ListeningMode } from '../types/audio';
 import { useTranslation } from '../i18n';
@@ -26,6 +27,10 @@ export interface StudioHeaderProps {
   onOpenHelp?: () => void;
   /** Callback alias for help toggle */
   onHelpToggle?: () => void;
+  /** Whether user is subscribed to Pro tier */
+  isPro?: boolean;
+  /** Callback to open pricing modal */
+  onOpenPricing?: () => void;
 }
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
@@ -37,6 +42,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   sampleRate = 48000,
   onOpenHelp,
   onHelpToggle,
+  isPro = false,
+  onOpenPricing,
 }) => {
   const { language, toggleLanguage, t } = useTranslation();
 
@@ -134,6 +141,32 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
         {/* Right: Quick Action Controls & Language Toggle */}
         <div className="flex items-center space-x-2.5">
+          {/* PRO Upgrade or Status Button */}
+          {isPro ? (
+            <button
+              type="button"
+              onClick={onOpenPricing}
+              data-testid="pro-active-badge"
+              className="flex items-center space-x-1.5 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-cyan-500/20 px-3 py-2 text-xs font-extrabold text-amber-300 shadow-sm hover:border-amber-400 transition-all active:scale-95"
+              title={t('pro.manageLicense')}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>{t('pro.active')}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenPricing}
+              data-testid="pro-upgrade-btn"
+              className="flex items-center space-x-1.5 rounded-xl border border-cyan-500/60 bg-gradient-to-r from-cyan-600 to-teal-500 px-3 py-2 text-xs font-bold text-slate-950 shadow-md shadow-cyan-950/50 hover:brightness-110 transition-all active:scale-95"
+              title={t('pro.upgrade')}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-slate-950" />
+              <span className="hidden sm:inline">{t('pro.upgrade')}</span>
+              <span className="sm:hidden">{t('pro.badge')}</span>
+            </button>
+          )}
+
           {/* Language Toggle Button */}
           <button
             type="button"

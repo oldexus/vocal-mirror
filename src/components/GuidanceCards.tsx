@@ -19,10 +19,13 @@ import {
   Volume2,
   Mic,
   Zap,
+  Lock,
+  Award,
 } from 'lucide-react';
 import {
   PSYCHOACOUSTIC_OVERVIEW,
   VOCAL_TRAINING_CARDS,
+  PRO_VOCAL_TRAINING_CARDS,
   VocalTrainingCard,
   GuidanceItem,
 } from '../constants/guidanceContent';
@@ -38,6 +41,8 @@ export interface GuidanceCardsProps {
   onSelectPreset?: (preset: PhysiologicalPresetKey) => void;
   onApplyPreset?: (preset: PhysiologicalPresetKey) => void;
   className?: string;
+  isPro?: boolean;
+  onOpenPricing?: () => void;
 }
 
 const BAND_KEY_MAP: Record<number, string> = {
@@ -57,10 +62,13 @@ export const GuidanceCards: React.FC<GuidanceCardsProps> = ({
   onSelectPreset,
   onApplyPreset,
   className = '',
+  isPro = false,
+  onOpenPricing,
 }) => {
   const { t, isJapanese } = useTranslation();
   const [isOverviewOpen, setIsOverviewOpen] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [expandedProCardId, setExpandedProCardId] = useState<string | null>(null);
 
   const resolvedMode = activeMode || currentMode || 'RAW';
   const displayItems = items !== undefined ? items : VOCAL_TRAINING_CARDS;
@@ -530,6 +538,120 @@ export const GuidanceCards: React.FC<GuidanceCardsProps> = ({
           })}
         </div>
       )}
+
+      {/* Pro Masterclasses Section */}
+      <div className="mt-6 pt-4 border-t border-slate-800/80 space-y-3" data-testid="pro-masterclasses-container">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Award className="h-4 w-4 text-amber-400" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              PRO Vocal Masterclasses
+            </h4>
+            <span className="rounded bg-gradient-to-r from-amber-400/20 to-cyan-400/20 border border-amber-400/40 px-1.5 py-0.2 text-[9px] font-bold text-amber-300">
+              PRO
+            </span>
+          </div>
+          {!isPro && onOpenPricing && (
+            <button
+              type="button"
+              onClick={onOpenPricing}
+              className="text-[11px] font-bold text-cyan-400 hover:underline"
+            >
+              {t('pro.upgrade')}
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-2.5">
+          {PRO_VOCAL_TRAINING_CARDS.map((proCard) => {
+            const isExpanded = expandedProCardId === proCard.id;
+            const title = isJapanese ? proCard.japaneseTitle : proCard.title;
+            return (
+              <div
+                key={proCard.id}
+                data-testid={`pro-training-card-${proCard.id}`}
+                className="rounded-xl border border-slate-800 bg-slate-950/70 p-3.5 transition-all hover:border-slate-700"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono text-[10px] font-bold text-amber-400">{proCard.indexNumber}</span>
+                      <span className="text-xs font-bold text-white">{title}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">{proCard.tagline}</p>
+                    <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono">
+                      <span>Target: {proCard.targetFrequency}</span>
+                      <span>&bull;</span>
+                      <span className="text-cyan-400">{proCard.targetBandName}</span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center space-x-2">
+                    {isPro ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedProCardId(isExpanded ? null : proCard.id)}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-200 hover:text-white"
+                      >
+                        {isExpanded ? 'Hide' : 'View Drill'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={onOpenPricing}
+                        className="inline-flex items-center space-x-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20"
+                      >
+                        <Lock className="h-3 w-3" />
+                        <span>Unlock</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded Pro Exercise Details if Pro is active */}
+                {isPro && isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-3 text-xs text-slate-300">
+                    <div>
+                      <span className="font-bold text-cyan-300 block mb-1">Scientific Mechanism:</span>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">{proCard.scientificExplanation}</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 p-2.5 border border-slate-800 space-y-1.5">
+                      <span className="font-bold text-white block text-[11px]">
+                        Exercise: {proCard.practicalExercise.name}
+                      </span>
+                      <ul className="list-decimal list-inside space-y-1 text-[11px] text-slate-300">
+                        {proCard.practicalExercise.steps.map((step, sIdx) => (
+                          <li key={sIdx}>{step}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] text-amber-300/90 italic pt-1">
+                        Tip: {proCard.practicalExercise.proTip}
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (proCard.studioIntegration.recommendedMode && onSelectMode) {
+                            onSelectMode(proCard.studioIntegration.recommendedMode);
+                          }
+                          if (proCard.studioIntegration.recommendedPreset && onSelectPreset) {
+                            onSelectPreset(proCard.studioIntegration.recommendedPreset);
+                          }
+                        }}
+                        className="inline-flex items-center space-x-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-cyan-500 transition-colors"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        <span>{proCard.studioIntegration.actionLabel}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 };

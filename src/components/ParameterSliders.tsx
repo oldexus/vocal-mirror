@@ -7,6 +7,8 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  Lock,
 } from 'lucide-react';
 import { DSPParameters } from '../types/audio';
 import {
@@ -14,6 +16,13 @@ import {
   DEFAULT_DSP_PARAMS,
 } from '../audio/constants';
 import { useTranslation } from '../i18n';
+
+export const FREE_DSP_PARAMS: ReadonlySet<keyof DSPParameters> = new Set([
+  'lowShelfGain',
+  'mandibleResGain',
+  'sinusResGain',
+  'masterGain',
+]);
 
 export interface ParameterSlidersProps {
   /** Active 16-parameter DSP parameters */
@@ -28,6 +37,10 @@ export interface ParameterSlidersProps {
   onResetAll?: () => void;
   /** Disables interactions */
   disabled?: boolean;
+  /** Whether Pro tier is active */
+  isPro?: boolean;
+  /** Callback to open pricing modal */
+  onOpenPricing?: () => void;
 }
 
 interface SliderRowProps {
@@ -43,6 +56,8 @@ interface SliderRowProps {
   onChange: (val: number) => void;
   onReset: () => void;
   disabled?: boolean;
+  isProLocked?: boolean;
+  onProLockClick?: () => void;
 }
 
 const SliderRow: React.FC<SliderRowProps> = ({
@@ -58,6 +73,8 @@ const SliderRow: React.FC<SliderRowProps> = ({
   onChange,
   onReset,
   disabled = false,
+  isProLocked = false,
+  onProLockClick,
 }) => {
   const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -81,6 +98,10 @@ const SliderRow: React.FC<SliderRowProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+    if (isProLocked) {
+      if (onProLockClick) onProLockClick();
+      return;
+    }
     const val = parseFloat((e.target as HTMLInputElement).value);
     onChange(val);
   };
@@ -90,6 +111,18 @@ const SliderRow: React.FC<SliderRowProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1.5">
           <span className="text-xs font-semibold text-slate-200">{localizedLabel}</span>
+          {isProLocked && (
+            <button
+              type="button"
+              onClick={onProLockClick}
+              title={t('pro.unlockPrompt') || 'PRO — Click to unlock'}
+              aria-label={`${localizedLabel} PRO lock`}
+              className="inline-flex items-center space-x-0.5 rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 hover:bg-amber-500/20 transition-colors"
+            >
+              <Lock className="h-2.5 w-2.5 text-amber-400" />
+              <span>PRO</span>
+            </button>
+          )}
           <div className="relative">
             <button
               type="button"
@@ -118,7 +151,7 @@ const SliderRow: React.FC<SliderRowProps> = ({
             <button
               type="button"
               onClick={onReset}
-              disabled={disabled}
+              disabled={disabled || isProLocked}
               aria-label={t('parameters.row.resetAria', { label: localizedLabel })}
               title={t('parameters.row.resetTitle', { label: localizedLabel, default: formatValueDisplay(defaultVal, unit) })}
               className="text-slate-500 hover:text-cyan-400 focus:outline-none transition-colors"
@@ -130,7 +163,10 @@ const SliderRow: React.FC<SliderRowProps> = ({
       </div>
 
       {/* Slider Track */}
-      <div className="flex items-center space-x-2.5">
+      <div
+        className="flex items-center space-x-2.5"
+        onClick={isProLocked ? onProLockClick : undefined}
+      >
         <span className="font-mono text-[10px] text-slate-500 w-10 text-right">
           {min}{unit === 'dB' ? '' : unit}
         </span>
@@ -143,14 +179,16 @@ const SliderRow: React.FC<SliderRowProps> = ({
           value={value}
           onChange={handleInputChange}
           onInput={handleInputChange}
-          disabled={disabled}
+          disabled={disabled || isProLocked}
           aria-label={localizedLabel}
           aria-valuenow={value}
           aria-valuemin={min}
           aria-valuemax={max}
           className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-800 accent-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-40"
           style={{
-            background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${progressPercent}%, #334155 ${progressPercent}%, #334155 100%)`,
+            background: isProLocked
+              ? `linear-gradient(to right, #64748b 0%, #64748b ${progressPercent}%, #334155 ${progressPercent}%, #334155 100%)`
+              : `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${progressPercent}%, #334155 ${progressPercent}%, #334155 100%)`,
           }}
         />
         <span className="font-mono text-[10px] text-slate-500 w-10">
@@ -168,11 +206,19 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
   onResetParam,
   onResetAll,
   disabled = false,
+  isPro = false,
+  onOpenPricing,
 }) => {
   const { t } = useTranslation();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  const isParamLocked = (key: keyof DSPParameters) => !isPro && !FREE_DSP_PARAMS.has(key);
+
   const handleChange = <K extends keyof DSPParameters>(key: K, value: DSPParameters[K]) => {
+    if (isParamLocked(key)) {
+      if (onOpenPricing) onOpenPricing();
+      return;
+    }
     if (onChangeParam) {
       onChangeParam(key, value);
     }
@@ -182,6 +228,10 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
   };
 
   const handleReset = (key: keyof DSPParameters) => {
+    if (isParamLocked(key)) {
+      if (onOpenPricing) onOpenPricing();
+      return;
+    }
     if (onResetParam) {
       onResetParam(key);
     } else {
@@ -196,9 +246,26 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
         <div className="flex items-center space-x-2">
           <Sliders className="h-5 w-5 text-cyan-400" />
           <div>
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-200">
-              {t('parameters.header.title')}
-            </h2>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-200">
+                {t('parameters.header.title')}
+              </h2>
+              {isPro ? (
+                <span className="inline-flex items-center space-x-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  <span>PRO</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenPricing}
+                  className="inline-flex items-center space-x-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+                >
+                  <Sparkles className="h-2.5 w-2.5" />
+                  <span>{t('pro.upgrade')}</span>
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-400">
               {t('parameters.header.subtitle')}
             </p>
@@ -258,6 +325,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('lowShelfGain', val)}
               onReset={() => handleReset('lowShelfGain')}
               disabled={disabled}
+              isProLocked={isParamLocked('lowShelfGain')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Low-Shelf Frequency */}
@@ -274,6 +343,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('lowShelfFreq', val)}
               onReset={() => handleReset('lowShelfFreq')}
               disabled={disabled}
+              isProLocked={isParamLocked('lowShelfFreq')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Mandible Jaw Gain */}
@@ -290,6 +361,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('mandibleResGain', val)}
               onReset={() => handleReset('mandibleResGain')}
               disabled={disabled}
+              isProLocked={isParamLocked('mandibleResGain')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Mandible Jaw Frequency */}
@@ -306,6 +379,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('mandibleResFreq', val)}
               onReset={() => handleReset('mandibleResFreq')}
               disabled={disabled}
+              isProLocked={isParamLocked('mandibleResFreq')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Mandible Jaw Q */}
@@ -322,6 +397,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('mandibleResQ', val)}
               onReset={() => handleReset('mandibleResQ')}
               disabled={disabled}
+              isProLocked={isParamLocked('mandibleResQ')}
+              onProLockClick={onOpenPricing}
             />
           </div>
         </div>
@@ -353,6 +430,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('sinusResGain', val)}
               onReset={() => handleReset('sinusResGain')}
               disabled={disabled}
+              isProLocked={isParamLocked('sinusResGain')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Cranial Tissue Damping Cutoff */}
@@ -369,6 +448,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('tissueCutoffFreq', val)}
               onReset={() => handleReset('tissueCutoffFreq')}
               disabled={disabled}
+              isProLocked={isParamLocked('tissueCutoffFreq')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* High-Shelf Air Sibilance Damping */}
@@ -385,6 +466,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('highShelfGain', val)}
               onReset={() => handleReset('highShelfGain')}
               disabled={disabled}
+              isProLocked={isParamLocked('highShelfGain')}
+              onProLockClick={onOpenPricing}
             />
 
             {/* Advanced Filters */}
@@ -403,6 +486,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('sinusResFreq', val)}
                   onReset={() => handleReset('sinusResFreq')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('sinusResFreq')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="sinusResQ"
@@ -417,6 +502,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('sinusResQ', val)}
                   onReset={() => handleReset('sinusResQ')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('sinusResQ')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="antiResGain"
@@ -431,6 +518,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('antiResGain', val)}
                   onReset={() => handleReset('antiResGain')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('antiResGain')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="antiResFreq"
@@ -445,6 +534,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('antiResFreq', val)}
                   onReset={() => handleReset('antiResFreq')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('antiResFreq')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="antiResQ"
@@ -459,6 +550,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('antiResQ', val)}
                   onReset={() => handleReset('antiResQ')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('antiResQ')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="tissueCutoffQ"
@@ -473,6 +566,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('tissueCutoffQ', val)}
                   onReset={() => handleReset('tissueCutoffQ')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('tissueCutoffQ')}
+                  onProLockClick={onOpenPricing}
                 />
                 <SliderRow
                   paramKey="highShelfFreq"
@@ -487,6 +582,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
                   onChange={(val) => handleChange('highShelfFreq', val)}
                   onReset={() => handleReset('highShelfFreq')}
                   disabled={disabled}
+                  isProLocked={isParamLocked('highShelfFreq')}
+                  onProLockClick={onOpenPricing}
                 />
               </>
             )}
@@ -505,6 +602,8 @@ export const ParameterSliders: React.FC<ParameterSlidersProps> = ({
               onChange={(val) => handleChange('masterGain', val)}
               onReset={() => handleReset('masterGain')}
               disabled={disabled}
+              isProLocked={isParamLocked('masterGain')}
+              onProLockClick={onOpenPricing}
             />
           </div>
         </div>

@@ -402,6 +402,106 @@ export interface TranslationDictionary {
         };
         keyTakeaway: string;
       };
+      voice_actor_formant: {
+        title: string;
+        japaneseTitle: string;
+        category: string;
+        categoryLabel: string;
+        targetFrequency: string;
+        targetBandName: string;
+        tagline: string;
+        scientificExplanation: string;
+        anatomicalDetail: string;
+        exercise: {
+          name: string;
+          objective: string;
+          step1: string;
+          step2: string;
+          step3: string;
+          step4: string;
+          proTip: string;
+        };
+        studio: {
+          sliderTip: string;
+          actionLabel: string;
+        };
+        keyTakeaway: string;
+      };
+      podcast_proximity_boom: {
+        title: string;
+        japaneseTitle: string;
+        category: string;
+        categoryLabel: string;
+        targetFrequency: string;
+        targetBandName: string;
+        tagline: string;
+        scientificExplanation: string;
+        anatomicalDetail: string;
+        exercise: {
+          name: string;
+          objective: string;
+          step1: string;
+          step2: string;
+          step3: string;
+          step4: string;
+          proTip: string;
+        };
+        studio: {
+          sliderTip: string;
+          actionLabel: string;
+        };
+        keyTakeaway: string;
+      };
+      singer_formant_projection: {
+        title: string;
+        japaneseTitle: string;
+        category: string;
+        categoryLabel: string;
+        targetFrequency: string;
+        targetBandName: string;
+        tagline: string;
+        scientificExplanation: string;
+        anatomicalDetail: string;
+        exercise: {
+          name: string;
+          objective: string;
+          step1: string;
+          step2: string;
+          step3: string;
+          step4: string;
+          proTip: string;
+        };
+        studio: {
+          sliderTip: string;
+          actionLabel: string;
+        };
+        keyTakeaway: string;
+      };
+      english_vowel_trajectory: {
+        title: string;
+        japaneseTitle: string;
+        category: string;
+        categoryLabel: string;
+        targetFrequency: string;
+        targetBandName: string;
+        tagline: string;
+        scientificExplanation: string;
+        anatomicalDetail: string;
+        exercise: {
+          name: string;
+          objective: string;
+          step1: string;
+          step2: string;
+          step3: string;
+          step4: string;
+          proTip: string;
+        };
+        studio: {
+          sliderTip: string;
+          actionLabel: string;
+        };
+        keyTakeaway: string;
+      };
     };
     ui: {
       mechanismTitle: string;
@@ -488,6 +588,84 @@ export interface TranslationDictionary {
       label: string;
       text: string;
     };
+  };
+  pricing: {
+    title: string;
+    subtitle: string;
+    closeAria: string;
+    badge: string;
+    currencyNotice: string;
+    monthlyPlan: {
+      name: string;
+      price: string;
+      period: string;
+      desc: string;
+      cta: string;
+    };
+    lifetimePlan: {
+      name: string;
+      price: string;
+      period: string;
+      desc: string;
+      cta: string;
+      badge: string;
+    };
+    features: {
+      title: string;
+      item1: string;
+      item2: string;
+      item3: string;
+      item4: string;
+      item5: string;
+    };
+    licenseInput: {
+      title: string;
+      placeholder: string;
+      button: string;
+      success: string;
+      invalid: string;
+      demoButton: string;
+      deactivateButton: string;
+    };
+    guarantee: string;
+    clientPrivacy: string;
+  };
+  pro: {
+    badge: string;
+    active: string;
+    upgrade: string;
+    unlocked: string;
+    unlockPrompt: string;
+    manageLicense: string;
+  };
+  customPresets: {
+    title: string;
+    saveButton: string;
+    saveAria: string;
+    modalTitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    tagLabel: string;
+    tagPlaceholder: string;
+    descLabel: string;
+    descPlaceholder: string;
+    saveAction: string;
+    cancelAction: string;
+    exportButton: string;
+    importButton: string;
+    noPresets: string;
+    deleteAria: string;
+    loadAria: string;
+    importSuccess: string;
+    importError: string;
+  };
+  hero: {
+    title: string;
+    highlight: string;
+    subtitle: string;
+    badge: string;
+    exploreButton: string;
+    dismissAria: string;
   };
   errors: {
     micPermissionDenied: string;

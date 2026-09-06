@@ -4,7 +4,7 @@
 
 Conduct a comprehensive web deployment readiness assessment, configuration generation, and cross-platform compatibility optimization for the VoiceMirror (VocalMirror) client-side Web Audio application, ensuring it can be deployed seamlessly to standard static hosting environments (Cloudflare Pages, Vercel, GitHub Pages, Firebase Hosting, etc.).
 
-Working directory: /Users/ash/Documents/00_GoogleDriveShare/Lv11_Development/vocal-mirror
+Working directory: Lv11_Development/media/studio/vocal-mirror
 Integrity mode: development
 
 ## Requirements

@@ -423,4 +423,96 @@ describe('ExportModal Component Test Suite', () => {
       unmount();
     });
   });
+
+  // -------------------------------------------------------------
+  // 8. Pro Gating & Monetization Lock Tests
+  // -------------------------------------------------------------
+  describe('8. Pro Gating & Monetization Lock Tests', () => {
+    it('triggers onOpenPricing when free tier user clicks ALL_MODES button', () => {
+      const onOpenPricing = vi.fn();
+
+      const { container, unmount } = renderUI(
+        <ExportModal
+          isOpen={true}
+          onClose={() => {}}
+          audioBuffer={mockBuffer}
+          currentMode="RAW"
+          params={DEFAULT_DSP_PARAMS}
+          isPro={false}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      const allModesBtn = container.querySelector('button[data-mode="ALL_MODES"]') as HTMLButtonElement;
+      expect(allModesBtn).not.toBeNull();
+      expect(allModesBtn.textContent).toContain('PRO');
+
+      act(() => {
+        allModesBtn.click();
+      });
+
+      expect(onOpenPricing).toHaveBeenCalledTimes(1);
+
+      unmount();
+    });
+
+    it('triggers onOpenPricing when free tier user clicks 32-bit Float button', () => {
+      const onOpenPricing = vi.fn();
+
+      const { container, unmount } = renderUI(
+        <ExportModal
+          isOpen={true}
+          onClose={() => {}}
+          audioBuffer={mockBuffer}
+          currentMode="RAW"
+          params={DEFAULT_DSP_PARAMS}
+          isPro={false}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      const float32Btn = container.querySelector('button[data-format="float32"]') as HTMLButtonElement;
+      expect(float32Btn).not.toBeNull();
+      expect(float32Btn.textContent).toContain('PRO');
+
+      act(() => {
+        float32Btn.click();
+      });
+
+      expect(onOpenPricing).toHaveBeenCalledTimes(1);
+
+      unmount();
+    });
+
+    it('allows Pro tier user to select ALL_MODES and 32-bit Float without opening pricing', () => {
+      const onOpenPricing = vi.fn();
+
+      const { container, unmount } = renderUI(
+        <ExportModal
+          isOpen={true}
+          onClose={() => {}}
+          audioBuffer={mockBuffer}
+          currentMode="RAW"
+          params={DEFAULT_DSP_PARAMS}
+          isPro={true}
+          onOpenPricing={onOpenPricing}
+        />
+      );
+
+      const allModesBtn = container.querySelector('button[data-mode="ALL_MODES"]') as HTMLButtonElement;
+      const float32Btn = container.querySelector('button[data-format="float32"]') as HTMLButtonElement;
+
+      act(() => {
+        allModesBtn.click();
+        float32Btn.click();
+      });
+
+      expect(onOpenPricing).not.toHaveBeenCalled();
+      expect(allModesBtn.className).toContain('border-indigo-500');
+      expect(float32Btn.className).toContain('border-cyan-500');
+
+      unmount();
+    });
+  });
 });
+

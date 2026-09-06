@@ -2,7 +2,7 @@
 
 **作成日時**: 2026-08-24 09:30 JST  
 **対象バージョン**: `v0.1.0` (Initial Release: Bilingual Acoustic Perception Studio)  
-**プロジェクト拠点**: [`/Users/ash/Documents/00_GoogleDriveShare/Lv11_Development/vocal-mirror`](file:///Users/ash/Documents/00_GoogleDriveShare/Lv11_Development/vocal-mirror)
+**プロジェクト拠点**: `Lv11_Development/media/studio/vocal-mirror`
 
 ---
 

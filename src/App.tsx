@@ -13,7 +13,11 @@ import { ParameterSliders } from './components/ParameterSliders';
 import { SpectralGapAnalyzer } from './components/SpectralGapAnalyzer';
 import { GuidanceCards } from './components/GuidanceCards';
 import { ExportModal } from './components/ExportModal';
+import { PricingModal } from './components/PricingModal';
+import { CustomPresetModal } from './components/CustomPresetModal';
+import { VoiceConfrontationHero } from './components/VoiceConfrontationHero';
 import { useAudioStudio } from './hooks/useAudioStudio';
+import { useProPlan } from './hooks/useProPlan';
 import { LanguageProvider, useTranslation } from './i18n';
 
 const StudioMain: React.FC = () => {
@@ -22,6 +26,7 @@ const StudioMain: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   const studio = useAudioStudio();
+  const proPlan = useProPlan();
 
   // Global Keyboard Shortcuts
   const handleKeyDown = useCallback(
@@ -84,6 +89,13 @@ const StudioMain: React.FC = () => {
         return;
       }
 
+      // Handle Pricing / Pro (P)
+      if (e.key === 'p' || e.key === 'P' || e.code === 'KeyP') {
+        e.preventDefault();
+        proPlan.openPricing();
+        return;
+      }
+
       // Handle Help (H or ?)
       if (e.key === 'h' || e.key === 'H' || e.key === '?' || e.code === 'KeyH') {
         e.preventDefault();
@@ -101,10 +113,18 @@ const StudioMain: React.FC = () => {
           e.preventDefault();
           setIsExportOpen(false);
         }
+        if (proPlan.isPricingOpen) {
+          e.preventDefault();
+          proPlan.closePricing();
+        }
+        if (proPlan.isCustomPresetModalOpen) {
+          e.preventDefault();
+          proPlan.closeCustomPresetModal();
+        }
         return;
       }
     },
-    [studio, isHelpOpen, isExportOpen]
+    [studio, isHelpOpen, isExportOpen, proPlan]
   );
 
   useEffect(() => {
@@ -123,10 +143,24 @@ const StudioMain: React.FC = () => {
         latencyMs={studio.latencyMs}
         sampleRate={studio.sampleRate}
         onOpenHelp={() => setIsHelpOpen(true)}
+        isPro={proPlan.isPro}
+        onOpenPricing={proPlan.openPricing}
       />
 
       {/* 2. Main Studio Viewport */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+        {/* Voice Confrontation Educational & Value Proposition Hero Banner */}
+        <VoiceConfrontationHero
+          onOpenGuidance={() => {
+            const el = document.getElementById('guidance-cards-section');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          onOpenPricing={proPlan.openPricing}
+          isPro={proPlan.isPro}
+        />
+
         {/* Error Alert Banner */}
         {studio.error && (
           <div className="flex items-center space-x-3 rounded-xl border border-rose-500/40 bg-rose-950/40 p-4 text-rose-200 shadow-lg">
@@ -170,6 +204,23 @@ const StudioMain: React.FC = () => {
               currentPreset={studio.currentPreset}
               onSelectPreset={studio.setPreset}
               onResetToDefault={studio.resetAllParams}
+              customPresets={proPlan.customPresets}
+              onSelectCustomPreset={(preset) => studio.updateParameters(preset.params)}
+              onOpenSaveCustomPreset={proPlan.openCustomPresetModal}
+              onDeleteCustomPreset={proPlan.deletePreset}
+              onExportPresets={() => {
+                const json = proPlan.exportPresets();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vocalmirror_custom_presets_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              onImportPresets={proPlan.importPresets}
+              isPro={proPlan.isPro}
+              onOpenPricing={proPlan.openPricing}
             />
 
             <ParameterSliders
@@ -177,6 +228,8 @@ const StudioMain: React.FC = () => {
               onChangeParam={studio.updateParam}
               onResetParam={studio.resetParam}
               onResetAll={studio.resetAllParams}
+              isPro={proPlan.isPro}
+              onOpenPricing={proPlan.openPricing}
             />
           </div>
 
@@ -192,19 +245,23 @@ const StudioMain: React.FC = () => {
             />
 
             {/* Psychoacoustic Guidance Module (Milestone 4 GuidanceCards) */}
-            <GuidanceCards
-              activeMode={studio.mode}
-              currentMode={studio.mode}
-              activePreset={studio.currentPreset}
-              onSelectMode={studio.setMode}
-              onSelectPreset={studio.setPreset}
-              onApplyPreset={studio.setPreset}
-            />
+            <div id="guidance-cards-section">
+              <GuidanceCards
+                activeMode={studio.mode}
+                currentMode={studio.mode}
+                activePreset={studio.currentPreset}
+                onSelectMode={studio.setMode}
+                onSelectPreset={studio.setPreset}
+                onApplyPreset={studio.setPreset}
+                isPro={proPlan.isPro}
+                onOpenPricing={proPlan.openPricing}
+              />
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Export Modal Dialog (Milestone 4) */}
+      {/* Export Modal Dialog */}
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
@@ -213,6 +270,23 @@ const StudioMain: React.FC = () => {
         params={studio.params}
         currentParams={studio.params}
         sampleRate={studio.sampleRate}
+        isPro={proPlan.isPro}
+        onOpenPricing={proPlan.openPricing}
+      />
+
+      {/* Pro Pricing & Checkout Modal */}
+      <PricingModal
+        isOpen={proPlan.isPricingOpen}
+        onClose={proPlan.closePricing}
+        proPlan={proPlan}
+      />
+
+      {/* Custom Anatomical Preset Modal */}
+      <CustomPresetModal
+        isOpen={proPlan.isCustomPresetModalOpen}
+        onClose={proPlan.closeCustomPresetModal}
+        currentParams={studio.params}
+        onSavePreset={proPlan.savePreset}
       />
 
       {/* 3. Studio Footer */}

@@ -1,7 +1,10 @@
 {
   "name": "vocal-mirror",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Zero-Latency Client-Side Web Audio DSP Studio for Voice Confrontation & Physiological Vocal Training",
+  "author": "VocalMirror Core Team <contact@vocalmirror.app>",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

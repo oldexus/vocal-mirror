@@ -15,7 +15,7 @@
 
 VocalMirror アプリケーション（TypeScript / React / Web Audio DSP / Canvas 2D / WAV バイナリエンコーダ）に対する厳格なコードレビューおよびセキュリティ監査を実施し、是正パッチ（Code Diffs）と検証テストを含む包括的な評価報告書を作成・提示してください。
 
-- **作業ディレクトリ**: `/Users/ash/Documents/00_GoogleDriveShare/Lv11_Development/vocal-mirror`
+- **作業ディレクトリ**: `Lv11_Development/media/studio/vocal-mirror`
 - **完全性モード**: development
 
 ---

@@ -381,3 +381,155 @@ export const DEFAULT_GUIDANCE_ITEMS: GuidanceItem[] = [
     },
   },
 ];
+
+export const PRO_VOCAL_TRAINING_CARDS: VocalTrainingCard[] = [
+  {
+    id: 'voice_actor_formant',
+    indexNumber: '05',
+    title: 'Voice Actor Formant Splitting & Character Placement',
+    japaneseTitle: '声優・キャラクター別フォルマント共鳴分離（役柄による音響補正）',
+    category: 'Resonance',
+    categoryLabel: 'PRO / Voice Acting',
+    badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-300',
+    targetFrequency: '1.2 - 2.5 kHz',
+    targetBandName: 'F2/F3 Character Formant Shifting',
+    tagline: 'Manipulate pharyngeal narrowing to shift between young, heroic, and villain tones.',
+    scientificExplanation:
+      'Voice actors alter vocal tract geometry to shift Formant 2 (1.5-2.2kHz) and Formant 3 (2.5-3.0kHz). By isolating cranial bone conduction, actors can verify whether character resonance reaches the microphone with intended crispness or gets muffled inside the head.',
+    anatomicalDetail:
+      'Laryngeal height and velopharyngeal port closure govern the F2-F3 acoustic distance. Raising the larynx brightens age perception; depressing it conveys gravitas.',
+    practicalExercise: {
+      name: 'The 3-Tier Character Formant Morphing',
+      objective: 'Master intentional acoustic resonance displacement for voice acting.',
+      steps: [
+        'Juvenile / Bright: Elevate soft palate, smile gently, speak at 2.0kHz focus.',
+        'Heroic / Neutral: Balance chest shelf (180Hz) with 2.8kHz presence.',
+        'Villain / Deep: Drop larynx, expand pharynx, check bone low-shelf boost.',
+        'Audition in Mode C to ensure external clarity matches intended character identity.',
+      ],
+      proTip:
+        'Use the Spectral Gap Analyzer in Mode C to confirm crispness in the 2kHz region.',
+    },
+    studioIntegration: {
+      recommendedMode: 'COMPENSATED',
+      recommendedPreset: 'bright_cranial_female',
+      sliderTip:
+        'Tune mandibleResFreq to 300Hz and sinusResGain to +4dB for animated character projection.',
+      actionLabel: 'Load Voice Actor Calibration',
+    },
+    keyTakeaway:
+      'Character voices require conscious formant tuning rather than throat strain.',
+  },
+  {
+    id: 'podcast_proximity_boom',
+    indexNumber: '06',
+    title: 'Podcaster & Streamer Low-End Clarity & Boom Mitigation',
+    japaneseTitle: 'ポッドキャスト・配信者用ブーミー抑制と近接濁り解消',
+    category: 'Engineering',
+    categoryLabel: 'PRO / Podcasting',
+    badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+    targetFrequency: '120 - 280 Hz',
+    targetBandName: 'Chest Resonance / Muddy Lows Clean-Up',
+    tagline: 'Eliminate microphone boominess while preserving authoritative vocal presence.',
+    scientificExplanation:
+      'Podcasters often speak 3-5cm from broadcast microphones (e.g. Shure SM7B), causing proximity build-up at 150-250Hz. Because bone conduction already boosts this band, the recorded voice sounds muddy and exhausting to listeners.',
+    anatomicalDetail:
+      'The larynx naturally resonates at fundamental frequencies; coupling with room reflections and mic proximity compounds acoustic congestion at 200Hz.',
+    practicalExercise: {
+      name: 'The Broadcast De-Mudding Drill',
+      objective: 'Clean up speech intelligibility for long-form streaming.',
+      steps: [
+        'Record 30 seconds of conversational podcast speech at 5cm distance.',
+        'Switch between Mode A and Mode B to identify excess 200Hz mud.',
+        'Engage Mode C to audition the inverse-calibrated compensated vocal track.',
+        'Observe how speech intelligibility skyrockets on phone speakers and earbuds.',
+      ],
+      proTip:
+        'A 2dB reduction at 200Hz increases long-form speech listening endurance by 40%.',
+    },
+    studioIntegration: {
+      recommendedMode: 'COMPENSATED',
+      recommendedPreset: 'natural_standard',
+      sliderTip:
+        'Reduce lowShelfGain by 2.5dB and tighten antiResQ to 2.0 for broadcast polish.',
+      actionLabel: 'Apply Broadcast De-Mud',
+    },
+    keyTakeaway:
+      'Warmth is perceived at 100Hz; mud is accumulated at 250Hz. Carve mud, keep warmth.',
+  },
+  {
+    id: 'singer_formant_projection',
+    indexNumber: '07',
+    title: "Singer's Formant (2.8 kHz) Masterclass & Acoustic Piercing",
+    japaneseTitle: 'シンガーズフォルマント（2.8kHz）の習得とオケ抜けの極意',
+    category: 'Projection',
+    categoryLabel: 'PRO / Vocals',
+    badgeColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
+    targetFrequency: '2.5 - 3.2 kHz',
+    targetBandName: 'Epilaryngeal Tube Horn Clustering',
+    tagline: 'Sing over heavy rock bands or dense orchestral mixes without volume strain.',
+    scientificExplanation:
+      'When the epilaryngeal tube cross-sectional area is less than 1/6th of the pharynx, formants F3, F4, and F5 cluster at 2.8kHz. Since acoustic instruments have a natural dip at 2.8kHz, the vocal cuts through effortlessly.',
+    anatomicalDetail:
+      'Narrowing the aryepiglottic sphincter creates a miniature acoustic megaphone inside your throat, multiplying sound pressure by 20dB without lung pressure.',
+    practicalExercise: {
+      name: 'The Epilaryngeal Twang Ring Drill',
+      objective: 'Locate and stabilize the 2.8kHz acoustic piercing ring.',
+      steps: [
+        "Produce a witch-like 'cackle' or duck 'quack' sound on vowel [ae].",
+        'Notice the instant energy peak at 2.8kHz on the VocalMirror spectrum.',
+        'Sustain that acoustic sensation while singing musical phrases.',
+        'Audit in Mode A to experience effortless vocal cut-through.',
+      ],
+      proTip:
+        'Your head will feel less low-end vibration, but the microphone receives double the acoustic power.',
+    },
+    studioIntegration: {
+      recommendedMode: 'RAW',
+      recommendedPreset: 'intense_confrontation',
+      sliderTip:
+        'Observe how cranial bone naturally damps 2.8kHz; trust the external microphone signal.',
+      actionLabel: 'Analyze 2.8kHz Singer Ring',
+    },
+    keyTakeaway:
+      'Projection is geometry, not volume. The 2.8kHz ring cuts through anything.',
+  },
+  {
+    id: 'english_vowel_trajectory',
+    indexNumber: '08',
+    title: 'English Phoneme & Native Acoustic Vowel Trajectory',
+    japaneseTitle: '英語ネイティブ母音・子音の音響的到達点（骨伝導こもり解消）',
+    category: 'Psychoacoustics',
+    categoryLabel: 'PRO / Pronunciation',
+    badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+    targetFrequency: '3.5 - 7.5 kHz',
+    targetBandName: 'High-Sibilance Pharyngeal Damping Compensation',
+    tagline: 'Master English fricatives [th, s, sh] and open vowels distorted by internal hearing.',
+    scientificExplanation:
+      'English pronunciation relies heavily on high-frequency consonant fricatives (4-8kHz) and distinct vowel formant shifts. Non-native speakers often over-rely on internal bone low frequencies, causing their English speech to sound swallowed or muffled.',
+    anatomicalDetail:
+      'Fricatives [θ], [s], [ʃ] produce turbulent noise at the teeth and alveolar ridge, radiating exclusively through air conduction with zero cranial bone transmission.',
+    practicalExercise: {
+      name: 'The Dual-Pathway English Phoneme Drill',
+      objective: 'Calibrate native high-frequency crispness and open vowel trajectories.',
+      steps: [
+        "Record minimal pairs: 'thin' vs 'sin', 'ship' vs 'sip', 'bad' vs 'bed'.",
+        'Notice in Mode A how clear and sharp the consonants sound.',
+        'Switch to Mode B: notice how skull bones completely mute consonant crispness.',
+        'Use Mode C to practice matching external native resonance effortlessly.',
+      ],
+      proTip:
+        'Do not judge English pronunciation from your internal skull hearing; always monitor air conduction.',
+    },
+    studioIntegration: {
+      recommendedMode: 'COMPENSATED',
+      recommendedPreset: 'bright_cranial_female',
+      sliderTip:
+        'Set highShelfGain to -1.0dB and tissueCutoffFreq to 4500Hz for maximum phoneme clarity.',
+      actionLabel: 'Test English Phoneme Clarity',
+    },
+    keyTakeaway:
+      'English clarity lives in 4-8kHz air conduction. Stop listening to your skull.',
+  },
+];
+

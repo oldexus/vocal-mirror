@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Loader2,
   Layers,
+  Lock,
 } from 'lucide-react';
 import { ListeningMode, DSPParameters } from '../types/audio';
 import { AcousticEngine } from '../audio/AcousticEngine';
@@ -37,6 +38,8 @@ export interface ExportModalProps {
   onExportSuccess?: (filename: string, blob: Blob) => void;
   onExportError?: (error: Error) => void;
   className?: string;
+  isPro?: boolean;
+  onOpenPricing?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -50,10 +53,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onExportSuccess,
   onExportError,
   className = '',
+  isPro = false,
+  onOpenPricing,
 }) => {
   const { t } = useTranslation();
   const activeDSPParams = params || currentParams || DEFAULT_DSP_PARAMS;
   const initialMode: ExportModeSelection = currentMode || 'INTERNAL_SIM';
+
+  const isProLocked = !isPro && Boolean(onOpenPricing);
 
   const [selectedExportMode, setSelectedExportMode] = useState<ExportModeSelection>(initialMode);
   const [bitDepth, setBitDepth] = useState<16 | 32>(16);
@@ -114,6 +121,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleStartExport = async () => {
     if (!audioBuffer) {
       setErrorMessage(t('export.errors.noBuffer'));
+      return;
+    }
+
+    if (isProLocked && (bitDepth === 32 || selectedExportMode === 'ALL_MODES')) {
+      setErrorMessage(t('pro.unlockPrompt') || 'Pro license required for 32-bit Float & batch multi-mode export.');
+      if (onOpenPricing) onOpenPricing();
       return;
     }
 
@@ -323,16 +336,28 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <button
               type="button"
               data-mode="ALL_MODES"
-              onClick={() => setSelectedExportMode('ALL_MODES')}
+              onClick={() => {
+                if (isProLocked) {
+                  if (onOpenPricing) onOpenPricing();
+                  return;
+                }
+                setSelectedExportMode('ALL_MODES');
+              }}
               className={`rounded-xl border p-3 text-left transition-all ${
                 selectedExportMode === 'ALL_MODES'
                   ? 'border-indigo-500 bg-indigo-500/10 text-indigo-200 ring-1 ring-indigo-500/50'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200'
               }`}
             >
-              <div className="font-bold text-white flex items-center space-x-1.5">
-                <Layers className="h-3.5 w-3.5 text-indigo-400" />
-                <span>{t('export.modes.all.title')}</span>
+              <div className="font-bold text-white flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <Layers className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>{t('export.modes.all.title')}</span>
+                </div>
+                <span className="inline-flex items-center space-x-1 rounded bg-gradient-to-r from-amber-400/20 to-cyan-400/20 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                  {isProLocked && <Lock className="h-2.5 w-2.5 text-amber-400" />}
+                  <span>PRO</span>
+                </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
                 {t('export.modes.all.desc')}
@@ -362,14 +387,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <button
               type="button"
               data-format="float32"
-              onClick={() => setBitDepth(32)}
+              onClick={() => {
+                if (isProLocked) {
+                  if (onOpenPricing) onOpenPricing();
+                  return;
+                }
+                setBitDepth(32);
+              }}
               className={`rounded-xl border p-2.5 text-center font-medium transition-all ${
                 bitDepth === 32
                   ? 'border-cyan-500 bg-cyan-500/20 text-cyan-200 font-bold'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
               }`}
             >
-              {t('export.bitDepth.float32')}
+              <div className="flex items-center justify-center space-x-1">
+                <span>{t('export.bitDepth.float32')}</span>
+                <span className="inline-flex items-center space-x-0.5 rounded bg-gradient-to-r from-amber-400/20 to-cyan-400/20 border border-amber-400/40 px-1 py-0.2 text-[9px] font-bold text-amber-300">
+                  {isProLocked && <Lock className="h-2.5 w-2.5 text-amber-400" />}
+                  <span>PRO</span>
+                </span>
+              </div>
             </button>
           </div>
         </div>

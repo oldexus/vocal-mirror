@@ -108,7 +108,7 @@ Incremental: changed=2, added=2, deleted=1 (skipping wipe + 67 unchanged file ro
   Repository indexed successfully (7.0s)
 
   951 nodes | 3,190 edges | 113 clusters | 73 flows
-  /Users/ash/Documents/00_GoogleDriveShare/Lv11_Development/vocal-mirror
+  Lv11_Development/media/studio/vocal-mirror
 
 
 ```
