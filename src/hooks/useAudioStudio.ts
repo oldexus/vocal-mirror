@@ -145,7 +145,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
   // ---------------------------------------------------------------------------
   // 3. AudioEngine Singleton & Context Lifecycle
   // ---------------------------------------------------------------------------
-  const getOrCreateEngine = useCallback(async (): Promise<AcousticEngine> => {
+  const getEngine = useCallback((): AcousticEngine => {
     if (!engineRef.current) {
       const engine = new AcousticEngine();
       engine.applyParameters(params, true);
@@ -168,16 +168,32 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
     return engine;
   }, [mode, params]);
 
+  const getOrCreateEngine = useCallback(async (): Promise<AcousticEngine> => {
+    return getEngine();
+  }, [getEngine]);
+
   const resumeContext = useCallback(async () => {
     try {
-      const engine = await getOrCreateEngine();
-      await engine.resume();
+      const engine = getEngine();
+      const ctx = engine.getContext();
+      if (ctx instanceof AudioContext && ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      // Play 1 silent frame to warm up iOS hardware audio route
+      try {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      } catch {}
+
       setAudioContextState(engine.getContext().state);
       setError(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to resume AudioContext');
     }
-  }, [getOrCreateEngine]);
+  }, [getEngine]);
 
   const unlockAudio = useCallback(async () => {
     await resumeContext();
@@ -249,10 +265,10 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
           return;
         }
 
-        const engine = await getOrCreateEngine();
-        if (playbackOpIdRef.current !== opId) return;
-
-        await engine.resume();
+        const engine = getEngine();
+        // Synchronously initiate resume during user interaction frame for iOS WebKit
+        const resumePromise = engine.resume();
+        await resumePromise;
         if (playbackOpIdRef.current !== opId) return;
 
         setAudioContextState(engine.getContext().state);
@@ -310,7 +326,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         stop();
       }
     },
-    [getOrCreateEngine, stopSourceNode, stop]
+    [getEngine, stopSourceNode, stop]
   );
 
   const play = useCallback(
@@ -418,7 +434,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
         return;
       }
 
-      const engine = await getOrCreateEngine();
+      const engine = getEngine();
       if (recordingOpIdRef.current !== opId) {
         stream.getTracks().forEach((track) => track.stop());
         return;
@@ -455,7 +471,14 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
 
       let selectedMimeType = '';
       if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-        const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/wav'];
+        const mimeTypes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+          'audio/aac',
+          'audio/ogg;codecs=opus',
+          'audio/wav',
+        ];
         for (const type of mimeTypes) {
           if (MediaRecorder.isTypeSupported(type)) {
             selectedMimeType = type;
@@ -512,7 +535,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
       setIsRecording(false);
       setIsProcessing(false);
     }
-  }, [stop, getOrCreateEngine, cancelRecording]);
+  }, [stop, getEngine, cancelRecording]);
 
   const stopRecording = useCallback(async () => {
     const opId = ++recordingOpIdRef.current;
@@ -787,6 +810,42 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
     };
   }, [cancelRecording]);
 
+  // One-time auto-unlock on first user interaction (touch/click/keydown) for iOS Safari
+  useEffect(() => {
+    const handleFirstUserInteraction = () => {
+      if (engineRef.current) {
+        const ctx = engineRef.current.getContext();
+        if (ctx instanceof AudioContext && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+          try {
+            const buffer = ctx.createBuffer(1, 1, 22050);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+          } catch {}
+        }
+      }
+    };
+
+    const options = { once: true, passive: true, capture: true };
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('touchstart', handleFirstUserInteraction, options);
+      window.addEventListener('touchend', handleFirstUserInteraction, options);
+      window.addEventListener('click', handleFirstUserInteraction, options);
+      window.addEventListener('keydown', handleFirstUserInteraction, options);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('touchstart', handleFirstUserInteraction, options);
+        window.removeEventListener('touchend', handleFirstUserInteraction, options);
+        window.removeEventListener('click', handleFirstUserInteraction, options);
+        window.removeEventListener('keydown', handleFirstUserInteraction, options);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (autoLoadDemo) {
       loadDemoAudio('male_baritone');
@@ -869,7 +928,7 @@ export function useAudioStudio(options: UseAudioStudioOptions = {}): UseAudioStu
     error,
     volume,
     latencyMs: 12,
-    sampleRate: 48000,
+    sampleRate: engineRef.current ? engineRef.current.getContext().sampleRate : 48000,
 
     // Actions
     ensureAudioContext,

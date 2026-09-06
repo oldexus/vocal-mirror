@@ -202,7 +202,7 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
         </div>
 
         {/* Right Group: Demo Voice Loader, Export & Buffer Management */}
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Export WAV Button */}
           {onOpenExport && (
             <button

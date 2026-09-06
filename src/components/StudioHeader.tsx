@@ -85,7 +85,10 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   const status = getStatusBadge();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md transition-colors">
+    <header
+      className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md transition-colors"
+      style={{ paddingTop: 'max(0px, env(safe-area-inset-top, 0px))' }}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         {/* Left: Branding & App Title */}
         <div className="flex items-center space-x-3.5">

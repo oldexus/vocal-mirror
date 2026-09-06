@@ -290,7 +290,10 @@ const StudioMain: React.FC = () => {
       />
 
       {/* 3. Studio Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/90 px-4 py-4 text-center text-xs text-slate-500">
+      <footer
+        className="border-t border-slate-800/80 bg-slate-950/90 px-4 py-4 text-center text-xs text-slate-500"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+      >
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
           <p>
             {t('app.footer.tagline')}

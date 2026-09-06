@@ -207,6 +207,24 @@ describe('useAudioStudio Custom Hook Test Suite', () => {
 
       unmount();
     });
+
+    it('automatically unlocks and warms AudioContext on iOS touchstart user interaction', async () => {
+      const { result, unmount } = renderAudioStudioHook();
+      expect(result.current.contextState).toBe('suspended');
+
+      act(() => {
+        window.dispatchEvent(new Event('touchstart'));
+      });
+
+      expect(result.current.contextState).toBe('running');
+      unmount();
+    });
+
+    it('exposes dynamic hardware sampleRate from active AudioContext', () => {
+      const { result, unmount } = renderAudioStudioHook();
+      expect(result.current.sampleRate).toBe(result.current.engine?.getContext().sampleRate);
+      unmount();
+    });
   });
 
   // ==========================================
