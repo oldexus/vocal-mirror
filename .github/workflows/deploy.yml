@@ -24,10 +24,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -59,6 +59,7 @@ jobs:
           test -f dist/icon-maskable-512.png || { echo "::error::dist/icon-maskable-512.png missing"; exit 1; }
           test -f dist/apple-touch-icon.png || { echo "::error::dist/apple-touch-icon.png missing"; exit 1; }
           test -f dist/og-image.png || { echo "::error::dist/og-image.png missing"; exit 1; }
+          test -f dist/.nojekyll || { echo "::error::dist/.nojekyll missing"; exit 1; }
           echo "All production distribution artifacts successfully verified!"
 
       - name: Upload Build Artifact

@@ -15,7 +15,12 @@ const SECURITY_HEADERS = {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const basePath = process.env.BASE_PATH || env.BASE_PATH || process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || './';
+  const basePath =
+    process.env.BASE_PATH ||
+    env.BASE_PATH ||
+    process.env.VITE_BASE_PATH ||
+    env.VITE_BASE_PATH ||
+    (mode === 'production' ? '/vocal-mirror/' : './');
 
   return {
     base: basePath,
